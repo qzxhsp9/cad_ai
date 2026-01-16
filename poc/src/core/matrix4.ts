@@ -40,7 +40,7 @@ export class Matrix4 {
     return copy;
   }
 
-  multiply(other: Matrix4): this {
+  multiply(other: Matrix4): Matrix4 {
     return Matrix4.multiply(this, other, this);
   }
 

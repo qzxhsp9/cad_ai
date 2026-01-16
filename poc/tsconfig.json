@@ -4,6 +4,7 @@
     "module": "ES2020",
     "moduleResolution": "Node",
     "lib": ["DOM", "ES2020"],
+    "types": ["@webgpu/types"],
     "rootDir": "src",
     "outDir": "dist",
     "strict": true,
