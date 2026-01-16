@@ -1,0 +1,9 @@
+Budget item,Target,Notes
+Frame time (60 FPS),16.6 ms total,CPU and GPU overlap; end-to-end budget
+Input processing,<=2 ms,Pointer events and hit test dispatch
+Command dispatch,<=1 ms,Command creation and queueing
+Picking query,<=2 ms,BVH or GPU picking readback
+Geometry update,<=5 ms,Worker compute and results apply
+GPU submission,<=3 ms,Buffer updates and draw calls
+GPU render,<=10 ms,Target for complex scenes; overlaps CPU work
+Upload size per frame,<=4 MB,Prefer partial buffer updates

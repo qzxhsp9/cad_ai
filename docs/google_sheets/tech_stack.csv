@@ -5,3 +5,5 @@ Geometry kernel,"OpenCascade (Wasm) or in-house Rust kernel","CAD needs B-Rep an
 State management,"Zustand + Immer","Lightweight, high-performance updates for high-frequency state"
 Multithreading,"Web Workers + SharedArrayBuffer","Move heavy compute and parsing off main thread; zero-copy sharing"
 AI interface,"ONNX Runtime Web / WebSocket","On-device lightweight inference; heavy generation via Python backend"
+UI framework,"React","Composable UI for toolbars and panels"
+Build tooling,"Vite + wasm-pack","Fast dev server and Rust to Wasm packaging"

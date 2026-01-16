@@ -2,6 +2,8 @@ Area,Technique,Description,Notes
 Rendering,Instancing,"Store one geometry in GPU memory and draw many instances","Reduce draw calls"
 Rendering,LOD,"Reduce mesh complexity for distant objects","Dynamic based on zoom"
 Rendering,On-demand rendering,"Render only on scene or camera change","Avoid continuous rAF loop"
+Rendering,Frustum culling,"Skip objects outside camera frustum","CPU-side visibility"
+Rendering,Partial buffer updates,"Update only changed ranges","Avoid full buffer re-upload"
 Interaction,Spatial indexing,"BVH tree for O(log n) picking","Supports million primitives"
 Interaction,GPU picking,"Render unique color IDs to offscreen buffer","Read pixel to identify object"
 Memory/Compute,SharedArrayBuffer,"Share memory between main thread and workers","Zero-copy data transfer"

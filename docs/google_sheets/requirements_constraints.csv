@@ -1,0 +1,7 @@
+Area,Requirement or constraint,Reason,Notes
+Browser,Chrome 113+ with WebGPU,Primary render path,Provide WebGL2 fallback
+Security,COOP/COEP enabled for SharedArrayBuffer,Zero-copy worker pipeline,Requires proper headers
+Compute,Wasm SIMD feature detection,Vector and matrix acceleration,Graceful fallback if unavailable
+Precision,Double-precision math in kernel,Robust CAD booleans,Use f64 in Rust core
+Storage,Versioned scene graph format,Backward compatibility,Schema version in every export
+Latency,Input to feedback under 16 ms,Smooth UX,Budgeted per stage

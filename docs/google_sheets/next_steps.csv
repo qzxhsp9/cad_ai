@@ -1,2 +1,4 @@
 Priority,Recommendation,Rationale
 1,"Start with rendering pipeline + data structures","Foundation for performance and subsequent features"
+2,"Define scene graph data format and command schema","Enables AI and undo/redo from day one"
+3,"Set up performance benchmark harness","Measure 60 FPS and sub-16 ms targets early"

@@ -11,6 +11,14 @@ The project plan has been structured into CSV files that can be imported as tabs
 - `docs/google_sheets/roadmap.csv`
 - `docs/google_sheets/feasibility_extensibility.csv`
 - `docs/google_sheets/next_steps.csv`
+- `docs/google_sheets/requirements_constraints.csv`
+- `docs/google_sheets/performance_budget.csv`
+- `docs/google_sheets/data_model_interface.csv`
+- `docs/google_sheets/command_system.csv`
+- `docs/google_sheets/benchmark_plan.csv`
+- `docs/google_sheets/risks.csv`
+- `docs/google_sheets/dependencies.csv`
+- `docs/google_sheets/deliverables.csv`
 
 Import steps:
 1. Open Google Sheets.
