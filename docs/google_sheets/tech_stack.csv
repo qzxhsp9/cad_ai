@@ -1,0 +1,7 @@
+Module,Recommended tech,Rationale
+Programming language,"TypeScript + Rust","TS for UI and app logic; Rust for geometry core compiled to Wasm for near-native speed"
+Rendering engine,"WebGPU (preferred) / Three.js (WebGL2)","WebGPU compute shaders enable large-scale CAD compute; Three.js is a compatibility fallback"
+Geometry kernel,"OpenCascade (Wasm) or in-house Rust kernel","CAD needs B-Rep and robust boolean ops, not just mesh"
+State management,"Zustand + Immer","Lightweight, high-performance updates for high-frequency state"
+Multithreading,"Web Workers + SharedArrayBuffer","Move heavy compute and parsing off main thread; zero-copy sharing"
+AI interface,"ONNX Runtime Web / WebSocket","On-device lightweight inference; heavy generation via Python backend"

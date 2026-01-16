@@ -1,0 +1,7 @@
+Layer,Responsibilities,Key components
+Architecture style,"Layered architecture with ECS variant","Decouple data, logic, and rendering"
+Presentation layer,"React UI components for toolbar and properties; no direct canvas ops","Toolbars, panels"
+Interaction layer,"Capture input and convert to commands","DrawLineCommand, ExtrudeCommand"
+Application core,"Manage app state and history","Command manager (undo/redo), scene graph"
+Kernel layer (Rust/Wasm),"Geometry compute and spatial indexing","Intersections, boolean ops, fillet; BVH or R-tree"
+Rendering layer,"Convert geometry to GPU buffers and draw","Instanced rendering, GPU buffers"
