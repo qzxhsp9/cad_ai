@@ -153,13 +153,13 @@ export class WebGpuRenderer implements Renderer {
       size: mesh.positions.byteLength,
       usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST
     });
-    device.queue.writeBuffer(this.vertexBuffer, 0, mesh.positions);
+    this.writeBuffer(this.vertexBuffer, mesh.positions);
 
     this.indexBuffer = device.createBuffer({
       size: mesh.indices.byteLength,
       usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST
     });
-    device.queue.writeBuffer(this.indexBuffer, 0, mesh.indices);
+    this.writeBuffer(this.indexBuffer, mesh.indices);
 
     this.indexCount = mesh.indexCount;
   }
@@ -173,7 +173,7 @@ export class WebGpuRenderer implements Renderer {
       size: instanceMatrices.byteLength,
       usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST
     });
-    device.queue.writeBuffer(this.instanceBuffer, 0, instanceMatrices);
+    this.writeBuffer(this.instanceBuffer, instanceMatrices);
     this.instanceCount = instanceMatrices.length / 16;
   }
 
@@ -191,7 +191,7 @@ export class WebGpuRenderer implements Renderer {
       return;
     }
 
-    this.device.queue.writeBuffer(this.uniformBuffer, 0, viewProjection);
+    this.writeBuffer(this.uniformBuffer, viewProjection);
 
     const encoder = this.device.createCommandEncoder();
     const colorAttachment: GPURenderPassColorAttachment = {
@@ -246,6 +246,19 @@ export class WebGpuRenderer implements Renderer {
     this.instanceBuffer?.destroy();
     this.uniformBuffer?.destroy();
     this.depthTexture?.destroy();
+  }
+
+  private writeBuffer(buffer: GPUBuffer, data: ArrayBufferView): void {
+    if (!this.device) {
+      return;
+    }
+    this.device.queue.writeBuffer(
+      buffer,
+      0,
+      data.buffer as ArrayBuffer,
+      data.byteOffset,
+      data.byteLength
+    );
   }
 
   private configureContext(): void {
