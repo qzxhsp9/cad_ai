@@ -1,0 +1,9 @@
+{
+  "name": "cad-ai",
+  "private": true,
+  "workspaces": ["apps/*", "poc"],
+  "scripts": {
+    "poc:build": "npm --prefix poc run build",
+    "poc:typecheck": "npm --prefix poc run typecheck"
+  }
+}

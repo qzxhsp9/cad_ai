@@ -24,3 +24,12 @@ Import steps:
 1. Open Google Sheets.
 2. File -> Import -> Upload.
 3. Upload each CSV and choose "Insert new sheet(s)".
+
+## POC renderer
+The `poc` folder contains a minimal WebGPU/WebGL2 renderer and core math types.
+
+Build and run:
+1. `cd poc`
+2. `npm install`
+3. `npm run build`
+4. Serve the folder with a local static server (for example `python -m http.server 8080`) and open `http://localhost:8080/poc/index.html`.
