@@ -29,6 +29,7 @@ Import steps:
 ## Data model
 - JSON schema: `docs/schema/scene_graph_v0.json`
 - TypeScript core types: `apps/web/src/core`
+- Math conventions: `docs/engineering/math_conventions.md`
 
 ## POC renderer
 The `poc` folder contains a minimal WebGPU/WebGL2 renderer and core math types.
@@ -38,3 +39,4 @@ Build and run:
 2. `npm install`
 3. `npm run build`
 4. Serve the folder with a local static server (for example `python -m http.server 8080`) and open `http://localhost:8080/poc/index.html`.
+5. Optional regression fixture: add `?fixture=baseline` to the URL.

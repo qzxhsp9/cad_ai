@@ -5,6 +5,7 @@ import { RenderScheduler } from "./renderer/render_scheduler.js";
 import { Renderer } from "./renderer/renderer.js";
 import { WebGpuRenderer } from "./renderer/webgpu_renderer.js";
 import { WebGl2Renderer } from "./renderer/webgl2_renderer.js";
+import { frameCameraToGrid, getRegressionFixture } from "./fixtures/render_fixture.js";
 
 const GRID_X = 10;
 const GRID_Y = 10;
@@ -24,20 +25,30 @@ async function main(): Promise<void> {
   const mesh = Mesh.createCube(1);
   renderer.setMesh(mesh);
 
-  const instances = createInstanceMatrices(GRID_X, GRID_Y, GRID_Z, SPACING, SCALE);
+  const grid = {
+    x: GRID_X,
+    y: GRID_Y,
+    z: GRID_Z,
+    spacing: SPACING,
+    scale: SCALE
+  };
+  const instances = createInstanceMatrices(
+    grid.x,
+    grid.y,
+    grid.z,
+    grid.spacing,
+    grid.scale
+  );
   renderer.setInstances(instances.matrices);
 
+  const fixture = getRegressionFixture(new URLSearchParams(window.location.search));
   if (overlay) {
-    overlay.textContent = `${label} | Instances: ${instances.count}`;
+    const fixtureLabel = fixture ? ` | Fixture: ${fixture.name}` : "";
+    overlay.textContent = `${label} | Instances: ${instances.count}${fixtureLabel}`;
   }
 
   const camera = new OrbitCamera();
-  const halfX = ((GRID_X - 1) * SPACING) * 0.5;
-  const halfY = ((GRID_Y - 1) * SPACING) * 0.5;
-  const halfZ = ((GRID_Z - 1) * SPACING) * 0.5;
-  const radius = Math.hypot(halfX, halfY, halfZ) + SPACING;
-  camera.distance = Math.max(camera.distance, radius * 2.2);
-  camera.maxDistance = Math.max(camera.maxDistance, camera.distance * 2);
+  frameCameraToGrid(camera, grid, fixture?.camera);
   const view = new Matrix4();
   const projection = new Matrix4();
   const viewProjection = new Matrix4();

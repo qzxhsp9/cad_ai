@@ -134,6 +134,7 @@ export class WebGpuRenderer implements Renderer {
       },
       primitive: {
         topology: "triangle-list",
+        frontFace: "ccw",
         cullMode: "back"
       },
       depthStencil: {

@@ -83,22 +83,22 @@ export class Matrix4 {
     const b32 = be[14];
     const b33 = be[15];
 
-    oe[0] = a00 * b00 + a10 * b01 + a20 * b02 + a30 * b03;
-    oe[1] = a01 * b00 + a11 * b01 + a21 * b02 + a31 * b03;
-    oe[2] = a02 * b00 + a12 * b01 + a22 * b02 + a32 * b03;
-    oe[3] = a03 * b00 + a13 * b01 + a23 * b02 + a33 * b03;
-    oe[4] = a00 * b10 + a10 * b11 + a20 * b12 + a30 * b13;
-    oe[5] = a01 * b10 + a11 * b11 + a21 * b12 + a31 * b13;
-    oe[6] = a02 * b10 + a12 * b11 + a22 * b12 + a32 * b13;
-    oe[7] = a03 * b10 + a13 * b11 + a23 * b12 + a33 * b13;
-    oe[8] = a00 * b20 + a10 * b21 + a20 * b22 + a30 * b23;
-    oe[9] = a01 * b20 + a11 * b21 + a21 * b22 + a31 * b23;
-    oe[10] = a02 * b20 + a12 * b21 + a22 * b22 + a32 * b23;
-    oe[11] = a03 * b20 + a13 * b21 + a23 * b22 + a33 * b23;
-    oe[12] = a00 * b30 + a10 * b31 + a20 * b32 + a30 * b33;
-    oe[13] = a01 * b30 + a11 * b31 + a21 * b32 + a31 * b33;
-    oe[14] = a02 * b30 + a12 * b31 + a22 * b32 + a32 * b33;
-    oe[15] = a03 * b30 + a13 * b31 + a23 * b32 + a33 * b33;
+    oe[0] = a00 * b00 + a01 * b10 + a02 * b20 + a03 * b30;
+    oe[1] = a10 * b00 + a11 * b10 + a12 * b20 + a13 * b30;
+    oe[2] = a20 * b00 + a21 * b10 + a22 * b20 + a23 * b30;
+    oe[3] = a30 * b00 + a31 * b10 + a32 * b20 + a33 * b30;
+    oe[4] = a00 * b01 + a01 * b11 + a02 * b21 + a03 * b31;
+    oe[5] = a10 * b01 + a11 * b11 + a12 * b21 + a13 * b31;
+    oe[6] = a20 * b01 + a21 * b11 + a22 * b21 + a23 * b31;
+    oe[7] = a30 * b01 + a31 * b11 + a32 * b21 + a33 * b31;
+    oe[8] = a00 * b02 + a01 * b12 + a02 * b22 + a03 * b32;
+    oe[9] = a10 * b02 + a11 * b12 + a12 * b22 + a13 * b32;
+    oe[10] = a20 * b02 + a21 * b12 + a22 * b22 + a23 * b32;
+    oe[11] = a30 * b02 + a31 * b12 + a32 * b22 + a33 * b32;
+    oe[12] = a00 * b03 + a01 * b13 + a02 * b23 + a03 * b33;
+    oe[13] = a10 * b03 + a11 * b13 + a12 * b23 + a13 * b33;
+    oe[14] = a20 * b03 + a21 * b13 + a22 * b23 + a23 * b33;
+    oe[15] = a30 * b03 + a31 * b13 + a32 * b23 + a33 * b33;
 
     return out;
   }
@@ -201,15 +201,15 @@ export class Matrix4 {
 
     const e = out.elements;
     e[0] = m11 * scale.x;
-    e[1] = m21 * scale.x;
-    e[2] = m31 * scale.x;
+    e[1] = m12 * scale.x;
+    e[2] = m13 * scale.x;
     e[3] = 0;
-    e[4] = m12 * scale.y;
+    e[4] = m21 * scale.y;
     e[5] = m22 * scale.y;
-    e[6] = m32 * scale.y;
+    e[6] = m23 * scale.y;
     e[7] = 0;
-    e[8] = m13 * scale.z;
-    e[9] = m23 * scale.z;
+    e[8] = m31 * scale.z;
+    e[9] = m32 * scale.z;
     e[10] = m33 * scale.z;
     e[11] = 0;
     e[12] = position.x;

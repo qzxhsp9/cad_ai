@@ -110,22 +110,22 @@ impl Matrix4 {
         let b32 = be[14];
         let b33 = be[15];
 
-        out[0] = b00 * a00 + b01 * a10 + b02 * a20 + b03 * a30;
-        out[1] = b00 * a01 + b01 * a11 + b02 * a21 + b03 * a31;
-        out[2] = b00 * a02 + b01 * a12 + b02 * a22 + b03 * a32;
-        out[3] = b00 * a03 + b01 * a13 + b02 * a23 + b03 * a33;
-        out[4] = b10 * a00 + b11 * a10 + b12 * a20 + b13 * a30;
-        out[5] = b10 * a01 + b11 * a11 + b12 * a21 + b13 * a31;
-        out[6] = b10 * a02 + b11 * a12 + b12 * a22 + b13 * a32;
-        out[7] = b10 * a03 + b11 * a13 + b12 * a23 + b13 * a33;
-        out[8] = b20 * a00 + b21 * a10 + b22 * a20 + b23 * a30;
-        out[9] = b20 * a01 + b21 * a11 + b22 * a21 + b23 * a31;
-        out[10] = b20 * a02 + b21 * a12 + b22 * a22 + b23 * a32;
-        out[11] = b20 * a03 + b21 * a13 + b22 * a23 + b23 * a33;
-        out[12] = b30 * a00 + b31 * a10 + b32 * a20 + b33 * a30;
-        out[13] = b30 * a01 + b31 * a11 + b32 * a21 + b33 * a31;
-        out[14] = b30 * a02 + b31 * a12 + b32 * a22 + b33 * a32;
-        out[15] = b30 * a03 + b31 * a13 + b32 * a23 + b33 * a33;
+        out[0] = a00 * b00 + a01 * b10 + a02 * b20 + a03 * b30;
+        out[1] = a10 * b00 + a11 * b10 + a12 * b20 + a13 * b30;
+        out[2] = a20 * b00 + a21 * b10 + a22 * b20 + a23 * b30;
+        out[3] = a30 * b00 + a31 * b10 + a32 * b20 + a33 * b30;
+        out[4] = a00 * b01 + a01 * b11 + a02 * b21 + a03 * b31;
+        out[5] = a10 * b01 + a11 * b11 + a12 * b21 + a13 * b31;
+        out[6] = a20 * b01 + a21 * b11 + a22 * b21 + a23 * b31;
+        out[7] = a30 * b01 + a31 * b11 + a32 * b21 + a33 * b31;
+        out[8] = a00 * b02 + a01 * b12 + a02 * b22 + a03 * b32;
+        out[9] = a10 * b02 + a11 * b12 + a12 * b22 + a13 * b32;
+        out[10] = a20 * b02 + a21 * b12 + a22 * b22 + a23 * b32;
+        out[11] = a30 * b02 + a31 * b12 + a32 * b22 + a33 * b32;
+        out[12] = a00 * b03 + a01 * b13 + a02 * b23 + a03 * b33;
+        out[13] = a10 * b03 + a11 * b13 + a12 * b23 + a13 * b33;
+        out[14] = a20 * b03 + a21 * b13 + a22 * b23 + a23 * b33;
+        out[15] = a30 * b03 + a31 * b13 + a32 * b23 + a33 * b33;
 
         Self { elements: out }
     }
@@ -149,14 +149,17 @@ impl Matrix4 {
 
         let mut elements = [0.0; 16];
         elements[0] = x_axis.x;
-        elements[1] = y_axis.x;
-        elements[2] = z_axis.x;
-        elements[4] = x_axis.y;
+        elements[1] = x_axis.y;
+        elements[2] = x_axis.z;
+        elements[3] = 0.0;
+        elements[4] = y_axis.x;
         elements[5] = y_axis.y;
-        elements[6] = z_axis.y;
-        elements[8] = x_axis.z;
-        elements[9] = y_axis.z;
+        elements[6] = y_axis.z;
+        elements[7] = 0.0;
+        elements[8] = z_axis.x;
+        elements[9] = z_axis.y;
         elements[10] = z_axis.z;
+        elements[11] = 0.0;
         elements[12] = -x_axis.dot(eye);
         elements[13] = -y_axis.dot(eye);
         elements[14] = -z_axis.dot(eye);
@@ -181,13 +184,13 @@ impl Matrix4 {
 
         let mut elements = [0.0; 16];
         elements[0] = m11 * scale.x;
-        elements[1] = m21 * scale.x;
-        elements[2] = m31 * scale.x;
-        elements[4] = m12 * scale.y;
+        elements[1] = m12 * scale.x;
+        elements[2] = m13 * scale.x;
+        elements[4] = m21 * scale.y;
         elements[5] = m22 * scale.y;
-        elements[6] = m32 * scale.y;
-        elements[8] = m13 * scale.z;
-        elements[9] = m23 * scale.z;
+        elements[6] = m23 * scale.y;
+        elements[8] = m31 * scale.z;
+        elements[9] = m32 * scale.z;
         elements[10] = m33 * scale.z;
         elements[12] = position.x;
         elements[13] = position.y;
@@ -235,5 +238,22 @@ mod tests {
         assert_eq!(m.elements[5], 1.0);
         assert_eq!(m.elements[10], 1.0);
         assert_eq!(m.elements[15], 1.0);
+    }
+
+    #[test]
+    fn matrix_multiply_identity() {
+        let a = Matrix4::identity();
+        let b = Matrix4 {
+            elements: [
+                1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
+                13.0, 14.0, 15.0, 16.0,
+            ],
+        };
+
+        let left = Matrix4::multiply(a, b);
+        assert_eq!(left.elements, b.elements);
+
+        let right = Matrix4::multiply(b, a);
+        assert_eq!(right.elements, b.elements);
     }
 }

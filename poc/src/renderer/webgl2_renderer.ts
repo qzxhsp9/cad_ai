@@ -57,6 +57,7 @@ export class WebGl2Renderer implements Renderer {
     this.indexBuffer = gl.createBuffer();
     this.instanceBuffer = gl.createBuffer();
     gl.enable(gl.DEPTH_TEST);
+    gl.frontFace(gl.CCW);
   }
 
   setMesh(mesh: Mesh): void {
