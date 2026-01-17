@@ -152,10 +152,10 @@ function snapPriority(type: SnapType): number {
     case "endpoint":
     case "corner":
       return 0;
+    case "perpendicular":
+      return 1;
     case "midpoint":
     case "center":
-      return 1;
-    case "perpendicular":
       return 2;
     default:
       return 3;
