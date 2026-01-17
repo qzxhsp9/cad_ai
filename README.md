@@ -19,6 +19,7 @@ The project plan has been structured into CSV files that can be imported as tabs
 - `docs/google_sheets/risks.csv`
 - `docs/google_sheets/dependencies.csv`
 - `docs/google_sheets/deliverables.csv`
+- `docs/google_sheets/issues.csv`
 
 Import steps:
 1. Open Google Sheets.
