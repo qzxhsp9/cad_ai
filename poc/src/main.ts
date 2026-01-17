@@ -216,6 +216,10 @@ async function createInstancesWithWorker(
     });
   });
 
+  if (response.type !== "generated") {
+    throw new Error("Worker did not return matrices.");
+  }
+
   return {
     matrices: new Float32Array(response.buffer),
     count: response.count
