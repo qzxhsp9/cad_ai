@@ -6,9 +6,9 @@
 - View space uses a camera that looks down -Z.
 
 ## Matrix storage and multiplication
-- Matrices are column-major arrays.
+- Matrices are column-major arrays (indices 0..3 are column 0).
 - Vectors are column vectors; transforms are applied as `M * v`.
-- `Matrix4.multiply(a, b)` returns `a * b` (gl-matrix convention).
+- `Matrix4.multiply(a, b)` returns `a * b` and preserves `identity * B = B`.
 
 ## Camera lookAt
 - `zAxis = normalize(eye - target)`
