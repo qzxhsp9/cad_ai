@@ -89,7 +89,13 @@ export function computeSnap(
 
   const nearest = candidates
     .filter((candidate) => candidate.distance <= tolerance)
-    .sort((a, b) => a.distance - b.distance)[0];
+    .sort((a, b) => {
+      const priority = snapPriority(a.type) - snapPriority(b.type);
+      if (priority !== 0) {
+        return priority;
+      }
+      return a.distance - b.distance;
+    })[0];
 
   return nearest ?? null;
 }
@@ -139,4 +145,19 @@ function projectPointOnSegment(
     return null;
   }
   return [start[0] + vx * t, start[1] + vy * t, start[2]];
+}
+
+function snapPriority(type: SnapType): number {
+  switch (type) {
+    case "endpoint":
+    case "corner":
+      return 0;
+    case "midpoint":
+    case "center":
+      return 1;
+    case "perpendicular":
+      return 2;
+    default:
+      return 3;
+  }
 }
