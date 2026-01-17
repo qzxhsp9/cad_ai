@@ -8,6 +8,7 @@ Phase 1 - POC,1 month,"Rust+Wasm setup and render pipeline validation","Build ca
 Phase 1 - POC,1 month,"Rust+Wasm setup and render pipeline validation","WebGPU render loop with WebGL2 fallback",""
 Phase 1 - POC,1 month,"Rust+Wasm setup and render pipeline validation","Worker pipeline with SharedArrayBuffer",""
 Phase 1 - POC,1 month,"Rust+Wasm setup and render pipeline validation","Define scene graph schema v0 (entities/components)",""
+Phase 1 - POC,1 month,"Rust+Wasm setup and render pipeline validation","ISSUE-0011: POC 100k FPS benchmark",""
 Phase 1 - POC,1 month,"Rust+Wasm setup and render pipeline validation","Milestone","Draw 100k dynamic cubes at 60 FPS"
 Phase 2 - Data Model,1 month,"Scene graph and command execution","ISSUE-0003: Finalize SceneGraph v0 schema",""
 Phase 2 - Data Model,1 month,"Scene graph and command execution","ISSUE-0004: Define command execution spec",""
