@@ -18,7 +18,7 @@ test("builds line buffers from metadata", () => {
     createdAt: "2026-01-18T00:00:00Z",
     start: [0, 0, 0],
     end: [1, 0, 0]
-  } as const;
+  };
 
   const result = applyCommand(scene, command, { idFactory });
   const buffers = buildGeometryBuffers(result.scene);
