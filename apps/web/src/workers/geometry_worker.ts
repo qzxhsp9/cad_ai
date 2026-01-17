@@ -7,7 +7,10 @@ import {
 } from "./geometry_worker_shared.js";
 
 type WorkerContext = {
-  postMessage: (message: GeometryWorkerMessage, transfer?: ArrayBuffer[]) => void;
+  postMessage: (
+    message: GeometryWorkerMessage,
+    transfer?: ArrayBufferLike[]
+  ) => void;
   onmessage: ((event: { data: GeometryWorkerRequest }) => void) | null;
   close: () => void;
 };
