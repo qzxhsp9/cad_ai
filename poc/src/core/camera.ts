@@ -1,5 +1,5 @@
-import { Matrix4 } from "./matrix4";
-import { Vector3 } from "./vector3";
+import { Matrix4 } from "./matrix4.js";
+import { Vector3 } from "./vector3.js";
 
 const WORLD_UP = new Vector3(0, 1, 0);
 

@@ -1,10 +1,10 @@
-import { OrbitCamera } from "./core/camera";
-import { Matrix4 } from "./core/matrix4";
-import { Mesh } from "./core/mesh";
-import { RenderScheduler } from "./renderer/render_scheduler";
-import { Renderer } from "./renderer/renderer";
-import { WebGpuRenderer } from "./renderer/webgpu_renderer";
-import { WebGl2Renderer } from "./renderer/webgl2_renderer";
+import { OrbitCamera } from "./core/camera.js";
+import { Matrix4 } from "./core/matrix4.js";
+import { Mesh } from "./core/mesh.js";
+import { RenderScheduler } from "./renderer/render_scheduler.js";
+import { Renderer } from "./renderer/renderer.js";
+import { WebGpuRenderer } from "./renderer/webgpu_renderer.js";
+import { WebGl2Renderer } from "./renderer/webgl2_renderer.js";
 
 const GRID_X = 100;
 const GRID_Y = 100;
