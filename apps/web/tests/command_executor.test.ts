@@ -141,3 +141,78 @@ test("delete apply and undo", () => {
 
   assert.equal(restored.entities.length, 1);
 });
+
+test("draw_rect apply and undo", () => {
+  const idFactory = new IncrementingIdFactory("test");
+  const scene = createEmptySceneGraph({ name: "Rect Test" });
+
+  const command: Command = {
+    id: idFactory.nextCommandId(),
+    type: "draw_rect",
+    createdAt: "2026-01-18T00:00:00Z",
+    center: [0, 0, 0],
+    width: 2,
+    height: 1
+  };
+
+  const result = applyCommand(scene, command, { idFactory });
+  assert.equal(result.scene.entities.length, 1);
+
+  const undone = undoCommand(result.scene, result.undo, { idFactory });
+  assert.equal(undone.entities.length, 0);
+});
+
+test("draw_circle apply and undo", () => {
+  const idFactory = new IncrementingIdFactory("test");
+  const scene = createEmptySceneGraph({ name: "Circle Test" });
+
+  const command: Command = {
+    id: idFactory.nextCommandId(),
+    type: "draw_circle",
+    createdAt: "2026-01-18T00:00:00Z",
+    center: [0, 0, 0],
+    radius: 1,
+    segments: 8
+  };
+
+  const result = applyCommand(scene, command, { idFactory });
+  assert.equal(result.scene.entities.length, 1);
+
+  const undone = undoCommand(result.scene, result.undo, { idFactory });
+  assert.equal(undone.entities.length, 0);
+});
+
+test("extrude apply and undo", () => {
+  const idFactory = new IncrementingIdFactory("test");
+  const scene = createEmptySceneGraph({ name: "Extrude Test" });
+
+  const rectCommand: Command = {
+    id: idFactory.nextCommandId(),
+    type: "draw_rect",
+    createdAt: "2026-01-18T00:00:00Z",
+    center: [0, 0, 0],
+    width: 2,
+    height: 1
+  };
+
+  const rectResult = applyCommand(scene, rectCommand, { idFactory });
+  const profileId = rectResult.scene.entities[0].id;
+
+  const extrudeCommand: Command = {
+    id: idFactory.nextCommandId(),
+    type: "extrude",
+    createdAt: "2026-01-18T00:00:00Z",
+    profileEntityId: profileId,
+    height: 3
+  };
+
+  const extrudeResult = applyCommand(rectResult.scene, extrudeCommand, {
+    idFactory
+  });
+  assert.equal(extrudeResult.scene.entities.length, 2);
+
+  const undone = undoCommand(extrudeResult.scene, extrudeResult.undo, {
+    idFactory
+  });
+  assert.equal(undone.entities.length, 1);
+});

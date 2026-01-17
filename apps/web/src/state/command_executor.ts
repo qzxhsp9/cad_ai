@@ -12,6 +12,7 @@ import {
   TransformComponent,
   Vector3
 } from "../core/index.js";
+import type { GeometryTopology } from "../core/index.js";
 
 export interface CommandContext {
   idFactory: IdFactory;
@@ -67,6 +68,18 @@ export function applyCommand(
 ): CommandResult {
   if (command.type === "draw_line") {
     return applyDrawLine(scene, command, context);
+  }
+
+  if (command.type === "draw_rect") {
+    return applyDrawRect(scene, command, context);
+  }
+
+  if (command.type === "draw_circle") {
+    return applyDrawCircle(scene, command, context);
+  }
+
+  if (command.type === "extrude") {
+    return applyExtrude(scene, command, context);
   }
 
   if (command.type === "transform") {
@@ -202,6 +215,190 @@ function applyDrawLine(
   };
 }
 
+function applyDrawRect(
+  scene: SceneGraph,
+  command: Extract<Command, { type: "draw_rect" }>,
+  context: CommandContext
+): CommandResult {
+  if (command.width <= 0 || command.height <= 0) {
+    throw new Error("Invalid rect dimensions.");
+  }
+  assertVector(command.center, "center");
+
+  const bounds = computeBoundsFromPoints(rectPoints(command.center, command.width, command.height));
+  const meshCounts = estimatePolylineCounts(4);
+  const metadata: MetadataComponent = {
+    tags: ["primitive:rect"],
+    properties: {
+      primitive: "rect",
+      "rect.center.x": command.center[0],
+      "rect.center.y": command.center[1],
+      "rect.center.z": command.center[2],
+      "rect.width": command.width,
+      "rect.height": command.height
+    }
+  };
+
+  return createPrimitive(
+    scene,
+    context,
+    "Rect",
+    "primitive:rect",
+    "lines",
+    bounds,
+    metadata,
+    meshCounts
+  );
+}
+
+function applyDrawCircle(
+  scene: SceneGraph,
+  command: Extract<Command, { type: "draw_circle" }>,
+  context: CommandContext
+): CommandResult {
+  if (command.radius <= 0) {
+    throw new Error("Invalid circle radius.");
+  }
+  const segments = Math.max(3, command.segments ?? 32);
+  assertVector(command.center, "center");
+
+  const bounds = {
+    min: [
+      command.center[0] - command.radius,
+      command.center[1] - command.radius,
+      command.center[2]
+    ] as Vector3,
+    max: [
+      command.center[0] + command.radius,
+      command.center[1] + command.radius,
+      command.center[2]
+    ] as Vector3
+  };
+  const meshCounts = estimatePolylineCounts(segments);
+  const metadata: MetadataComponent = {
+    tags: ["primitive:circle"],
+    properties: {
+      primitive: "circle",
+      "circle.center.x": command.center[0],
+      "circle.center.y": command.center[1],
+      "circle.center.z": command.center[2],
+      "circle.radius": command.radius,
+      "circle.segments": segments
+    }
+  };
+
+  return createPrimitive(
+    scene,
+    context,
+    "Circle",
+    "primitive:circle",
+    "lines",
+    bounds,
+    metadata,
+    meshCounts
+  );
+}
+
+function applyExtrude(
+  scene: SceneGraph,
+  command: Extract<Command, { type: "extrude" }>,
+  context: CommandContext
+): CommandResult {
+  if (command.height <= 0) {
+    throw new Error("Invalid extrude height.");
+  }
+
+  const profileEntity = scene.entities.find(
+    (entity) => entity.id === command.profileEntityId
+  );
+  if (!profileEntity?.components.metadata) {
+    throw new Error("Profile metadata not found.");
+  }
+  const metadata = scene.components.metadata[profileEntity.components.metadata];
+  if (!metadata) {
+    throw new Error("Profile metadata not found.");
+  }
+
+  const primitive = metadata.properties.primitive;
+  let bounds: { min: Vector3; max: Vector3 };
+  let profileTag = "";
+  let segments = 0;
+  if (primitive === "rect") {
+    const width = Number(metadata.properties["rect.width"] ?? 0);
+    const height = Number(metadata.properties["rect.height"] ?? 0);
+    const center = [
+      Number(metadata.properties["rect.center.x"] ?? 0),
+      Number(metadata.properties["rect.center.y"] ?? 0),
+      Number(metadata.properties["rect.center.z"] ?? 0)
+    ] as Vector3;
+    bounds = computeBoundsFromPoints(rectPoints(center, width, height));
+    profileTag = "rect";
+    segments = 4;
+  } else if (primitive === "circle") {
+    const radius = Number(metadata.properties["circle.radius"] ?? 0);
+    const center = [
+      Number(metadata.properties["circle.center.x"] ?? 0),
+      Number(metadata.properties["circle.center.y"] ?? 0),
+      Number(metadata.properties["circle.center.z"] ?? 0)
+    ] as Vector3;
+    bounds = {
+      min: [center[0] - radius, center[1] - radius, center[2]] as Vector3,
+      max: [center[0] + radius, center[1] + radius, center[2]] as Vector3
+    };
+    profileTag = "circle";
+    segments = Math.max(3, Number(metadata.properties["circle.segments"] ?? 32));
+  } else {
+    throw new Error("Unsupported extrude profile.");
+  }
+
+  const extrudeBounds = {
+    min: bounds.min,
+    max: [bounds.max[0], bounds.max[1], bounds.max[2] + command.height] as Vector3
+  };
+  const meshCounts = estimateExtrudeCounts(segments);
+
+  const extrudeMetadata: MetadataComponent = {
+    tags: ["primitive:extrude"],
+    properties: {
+      primitive: "extrude",
+      "extrude.profile": profileTag,
+      "extrude.height": command.height,
+      "extrude.segments": segments,
+      "profile.min.x": bounds.min[0],
+      "profile.min.y": bounds.min[1],
+      "profile.min.z": bounds.min[2],
+      "profile.max.x": bounds.max[0],
+      "profile.max.y": bounds.max[1],
+      "profile.max.z": bounds.max[2]
+    }
+  };
+  if (profileTag === "circle") {
+    extrudeMetadata.properties["circle.center.x"] = Number(
+      metadata.properties["circle.center.x"] ?? 0
+    );
+    extrudeMetadata.properties["circle.center.y"] = Number(
+      metadata.properties["circle.center.y"] ?? 0
+    );
+    extrudeMetadata.properties["circle.center.z"] = Number(
+      metadata.properties["circle.center.z"] ?? 0
+    );
+    extrudeMetadata.properties["circle.radius"] = Number(
+      metadata.properties["circle.radius"] ?? 0
+    );
+  }
+
+  return createPrimitive(
+    scene,
+    context,
+    "Extrude",
+    "primitive:extrude",
+    "triangles",
+    extrudeBounds,
+    extrudeMetadata,
+    meshCounts
+  );
+}
+
 function applyTransform(
   scene: SceneGraph,
   command: Extract<Command, { type: "transform" }>,
@@ -330,10 +527,7 @@ function cloneMaterial(material: MaterialComponent): MaterialComponent {
 }
 
 function computeBounds(start: Vector3, end: Vector3) {
-  return {
-    min: [Math.min(start[0], end[0]), Math.min(start[1], end[1]), Math.min(start[2], end[2])] as Vector3,
-    max: [Math.max(start[0], end[0]), Math.max(start[1], end[1]), Math.max(start[2], end[2])] as Vector3
-  };
+  return computeBoundsFromPoints([start, end]);
 }
 
 function removeEntity(
@@ -435,6 +629,136 @@ function removeAssets(scene: SceneGraph, meshIds: AssetId[]): void {
   for (const meshId of meshIds) {
     delete scene.assets.meshes[meshId];
   }
+}
+
+function createPrimitive(
+  scene: SceneGraph,
+  context: CommandContext,
+  name: string,
+  sourceUri: string,
+  topology: GeometryTopology,
+  bounds: { min: Vector3; max: Vector3 },
+  metadata: MetadataComponent,
+  meshCounts: { vertexCount: number; indexCount: number }
+): CommandResult {
+  const nextScene = cloneSceneGraph(scene);
+  const idFactory = context.idFactory;
+  const entityId = idFactory.nextEntityId();
+  const transformId = idFactory.nextComponentId();
+  const geometryId = idFactory.nextComponentId();
+  const materialId = idFactory.nextComponentId();
+  const metadataId = idFactory.nextComponentId();
+  const meshId = idFactory.nextAssetId();
+
+  const geometry: GeometryComponent = {
+    mesh: meshId,
+    topology,
+    localBounds: bounds
+  };
+
+  nextScene.components.transforms[transformId] = cloneTransform(DEFAULT_TRANSFORM);
+  nextScene.components.geometries[geometryId] = geometry;
+  nextScene.components.materials[materialId] = cloneMaterial(DEFAULT_MATERIAL);
+  nextScene.components.metadata[metadataId] = metadata;
+
+  nextScene.entities.push({
+    id: entityId,
+    name,
+    components: {
+      transform: transformId,
+      geometry: geometryId,
+      material: materialId,
+      metadata: metadataId
+    }
+  });
+
+  nextScene.assets.meshes[meshId] = {
+    id: meshId,
+    name,
+    vertexCount: meshCounts.vertexCount,
+    indexCount: meshCounts.indexCount,
+    indexFormat: meshCounts.indexCount > 65535 ? "uint32" : "uint16",
+    topology,
+    layout: {
+      position: { offset: 0, stride: 12 }
+    },
+    sourceUri,
+    bounds
+  };
+
+  nextScene.metadata.updatedAt = now(context);
+
+  return {
+    scene: nextScene,
+    undo: {
+      type: "delete_created",
+      entityId,
+      componentIds: {
+        transform: transformId,
+        geometry: geometryId,
+        material: materialId,
+        metadata: metadataId
+      },
+      meshIds: [meshId]
+    }
+  };
+}
+
+function computeBoundsFromPoints(points: Vector3[]) {
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let minZ = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+  let maxZ = Number.NEGATIVE_INFINITY;
+
+  for (const point of points) {
+    minX = Math.min(minX, point[0]);
+    minY = Math.min(minY, point[1]);
+    minZ = Math.min(minZ, point[2]);
+    maxX = Math.max(maxX, point[0]);
+    maxY = Math.max(maxY, point[1]);
+    maxZ = Math.max(maxZ, point[2]);
+  }
+
+  return {
+    min: [minX, minY, minZ] as Vector3,
+    max: [maxX, maxY, maxZ] as Vector3
+  };
+}
+
+function rectPoints(center: Vector3, width: number, height: number): Vector3[] {
+  const halfW = width * 0.5;
+  const halfH = height * 0.5;
+  return [
+    [center[0] - halfW, center[1] - halfH, center[2]],
+    [center[0] + halfW, center[1] - halfH, center[2]],
+    [center[0] + halfW, center[1] + halfH, center[2]],
+    [center[0] - halfW, center[1] + halfH, center[2]]
+  ];
+}
+
+function estimatePolylineCounts(pointCount: number): {
+  vertexCount: number;
+  indexCount: number;
+} {
+  return {
+    vertexCount: pointCount,
+    indexCount: pointCount * 2
+  };
+}
+
+function estimateExtrudeCounts(pointCount: number): {
+  vertexCount: number;
+  indexCount: number;
+} {
+  const vertexCount = pointCount * 2;
+  const sideIndices = pointCount * 6;
+  const capIndices = Math.max(0, pointCount - 2) * 3 * 2;
+  return {
+    vertexCount,
+    indexCount: sideIndices + capIndices
+  };
 }
 
 function mergeComponents(

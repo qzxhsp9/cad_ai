@@ -3,6 +3,8 @@ import { Vector3 } from "./components.js";
 
 export type CommandType =
   | "draw_line"
+  | "draw_rect"
+  | "draw_circle"
   | "extrude"
   | "transform"
   | "delete"
@@ -19,6 +21,22 @@ export interface DrawLineCommand extends BaseCommand {
   type: "draw_line";
   start: Vector3;
   end: Vector3;
+  layerId?: string;
+}
+
+export interface DrawRectCommand extends BaseCommand {
+  type: "draw_rect";
+  center: Vector3;
+  width: number;
+  height: number;
+  layerId?: string;
+}
+
+export interface DrawCircleCommand extends BaseCommand {
+  type: "draw_circle";
+  center: Vector3;
+  radius: number;
+  segments?: number;
   layerId?: string;
 }
 
@@ -46,6 +64,8 @@ export interface BatchCommand extends BaseCommand {
 
 export type Command =
   | DrawLineCommand
+  | DrawRectCommand
+  | DrawCircleCommand
   | ExtrudeCommand
   | TransformCommand
   | DeleteCommand
