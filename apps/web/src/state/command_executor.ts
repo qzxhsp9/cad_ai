@@ -5,7 +5,6 @@ import {
   ComponentRefs,
   EntityId,
   GeometryComponent,
-  GeometryTopology,
   IdFactory,
   MaterialComponent,
   MetadataComponent,
@@ -134,7 +133,7 @@ function applyDrawLine(
     vertexCount: 2,
     indexCount: 2,
     indexFormat: "uint16",
-    topology: GeometryTopology.Lines,
+    topology: "lines",
     layout: {
       position: { offset: 0, stride: 12 }
     },
