@@ -1,5 +1,5 @@
-import { Mesh } from "../core/mesh";
-import { Renderer } from "./renderer";
+import { Mesh } from "../core/mesh.js";
+import { Renderer } from "./renderer.js";
 
 const VERTEX_SHADER = `#version 300 es
 precision highp float;
