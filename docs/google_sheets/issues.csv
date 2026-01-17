@@ -10,3 +10,4 @@ ISSUE-0008,Worker pipeline stub,"Add worker entry points for geometry build and 
 ISSUE-0009,SharedArrayBuffer channel,"Design data transfer contract for zero-copy buffers","SAB contract documented; fallback path defined","ISSUE-0008",Done
 ISSUE-0010,Configure wasm-pack pipeline,"Add wasm-pack build script, wasm bindings, and CI-ready instructions for local toolchain setup","wasm-pack build succeeds; wasm exports available; instructions documented for Cargo toolchain requirement","",Blocked
 ISSUE-0011,POC 100k FPS benchmark,"Validate 100k instance render target with benchmark mode and document the measured FPS","benchmark=1 shows FPS >= 60 for preset=100k on reference machine; capture evidence","ISSUE-0002",Open
+ISSUE-0012,Worker-driven geometry build path,"Build geometry buffers in a worker and validate with tests","Worker async build path passes tests","ISSUE-0006,ISSUE-0008",Done
