@@ -3,22 +3,22 @@ import { Renderer } from "./renderer.js";
 
 const SHADER = `
 struct Uniforms {
-  viewProj: mat4x4<f32>;
+  viewProj: mat4x4<f32>,
 };
 
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
 
 struct VertexInput {
-  @location(0) position: vec3<f32>;
-  @location(1) inst0: vec4<f32>;
-  @location(2) inst1: vec4<f32>;
-  @location(3) inst2: vec4<f32>;
-  @location(4) inst3: vec4<f32>;
+  @location(0) position: vec3<f32>,
+  @location(1) inst0: vec4<f32>,
+  @location(2) inst1: vec4<f32>,
+  @location(3) inst2: vec4<f32>,
+  @location(4) inst3: vec4<f32>,
 };
 
 struct VertexOutput {
-  @builtin(position) position: vec4<f32>;
-  @location(0) color: vec3<f32>;
+  @builtin(position) position: vec4<f32>,
+  @location(0) color: vec3<f32>,
 };
 
 @vertex
