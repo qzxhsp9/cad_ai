@@ -1,0 +1,8 @@
+Task,Depends on,Reason
+WebGPU pipeline,"Wasm build pipeline","Need Rust core available"
+Worker pipeline,"SharedArrayBuffer and data format","Requires stable data layout"
+Command system,"Scene graph schema","Commands operate on entities/components"
+BVH picking,"Geometry buffers and transforms","Requires spatial data"
+GPU picking,"Render pipeline","Needs offscreen render target"
+AI copilot,"Command system and data format","AI outputs commands or patches"
+Constraint solver,"Command system and geometry kernel","Needs parametric update hooks"

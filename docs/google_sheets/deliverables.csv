@@ -1,0 +1,8 @@
+Phase,Deliverable,Acceptance criteria
+Phase 1 - POC,"WebGPU/WebGL2 render loop with camera controls","100k cubes at 60 FPS; input latency <16 ms"
+Phase 1 - POC,"Rust core data structures (Vector3/Matrix4/Mesh)","Unit tests pass; SIMD enabled where available"
+Phase 1 - POC,"Scene graph schema v0","Entities/components defined and round-trip JSON"
+Phase 2 - MVP,"2D/3D primitives with undo/redo","Draw/extrude workflow works with no lag"
+Phase 2 - MVP,"Selection and snapping","Point/box selection and endpoint/midpoint snapping"
+Phase 3 - AI Integration,"Scene graph schema and AI interface","Commands and patches can be replayed"
+Phase 3 - AI Integration,"AI copilot endpoints","Text-to-CAD and smart completion demo"

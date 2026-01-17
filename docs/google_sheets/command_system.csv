@@ -1,0 +1,6 @@
+Command,Inputs,Outputs,Undo/Redo strategy,Notes
+DrawLineCommand,"start,end,layer","new line entity","Store entity ID for delete on undo","Base 2D primitive"
+ExtrudeCommand,"profile entity,height","new solid entity","Store created entity IDs for delete","Profile can be line/face"
+TransformCommand,"entity IDs, transform matrix","updated transforms","Store previous transforms","Batch for multi-select"
+DeleteCommand,"entity IDs","removed entities","Store serialized entities","Used by selection tools"
+BatchCommand,"list of commands","multiple updates","Undo in reverse order","Macro operations"

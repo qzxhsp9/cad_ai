@@ -1,0 +1,7 @@
+Benchmark,Scene size,Metric,Target,Notes
+Dynamic cubes,100,000 instances,FPS,>=60,POC milestone
+Mass primitives,1,000,000 primitives,FPS,>=60,Stress test for instancing and culling
+Picking latency,1,000,000 primitives,Pick response,<16 ms,BVH or GPU picking
+Camera orbit,500,000 primitives,FPS,>=60,Continuous movement
+File import,50 MB CAD file,Parse time,<=5 s,Worker parsing
+Undo/redo,1,000 commands,Latency,<16 ms,Command stack performance

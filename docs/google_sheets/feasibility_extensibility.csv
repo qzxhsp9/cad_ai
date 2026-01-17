@@ -1,0 +1,6 @@
+Section,Statement,Evidence/Notes
+Feasibility,"Wasm can host large native codebases","Proven in Figma, AutoCAD Web"
+Feasibility,"WebGPU adoption is rising","Chrome default support; compute capability > WebGL"
+Feasibility,"Rust memory safety suits geometry ops","Avoid browser crashes in complex ops"
+Extensibility,"Plugin architecture for tools","Each tool (line/circle) as plugin"
+Extensibility,"Headless mode for server or Node","Reuse core geometry for AI training and batch processing"

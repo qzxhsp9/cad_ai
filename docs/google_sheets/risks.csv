@@ -1,0 +1,7 @@
+Risk,Impact,Likelihood,Mitigation
+WebGPU availability gaps,"Limits reach","Medium","WebGL2 fallback and feature detection"
+SharedArrayBuffer blocked,"Worker pipeline degraded","Medium","Serve with COOP/COEP headers and fallback copies"
+Geometry kernel complexity,"Schedule slip","High","Start with minimal primitives; integrate OpenCascade later"
+AI payload size,"Latency spikes","Medium","Use diff-based patches and streaming"
+Precision issues in booleans,"Invalid solids","Medium","Use f64 and robust epsilon handling"
+GPU memory pressure,"Crashes or slowdowns","Medium","Instancing, LOD, and buffer eviction"

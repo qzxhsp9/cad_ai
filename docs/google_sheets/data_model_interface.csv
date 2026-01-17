@@ -1,0 +1,7 @@
+Interface,Format,Contents,Notes
+Scene graph (runtime),"Binary (typed arrays)","Entity IDs, transforms, geometry refs, materials","Optimized for zero-copy worker transfer"
+Scene graph (interchange),"JSON + optional binary blobs","Schema version, entities, components, metadata","For persistence and AI I/O"
+Geometry buffer,"Binary","Vertex/index buffers, attribute layout","GPU-ready layout"
+Command stream,"JSON events","Command name, args, timestamp, author","Used for undo/redo and AI playback"
+AI diff,"JSON patch","Add/update/delete entity or component","Minimize payload size"
+Asset registry,"JSON index","Mesh, material, texture references","Supports instancing"
