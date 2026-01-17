@@ -19,7 +19,7 @@ async function main(): Promise<void> {
   }
 
   const overlay = document.getElementById("overlay");
-  const { renderer, label } = await createRenderer(canvas);
+  const { renderer, label, depthZeroToOne } = await createRenderer(canvas);
 
   const mesh = Mesh.createCube(1);
   renderer.setMesh(mesh);
@@ -41,7 +41,7 @@ async function main(): Promise<void> {
     renderer.resize(width, height, devicePixelRatio);
 
     const aspect = width / Math.max(1, height);
-    camera.getProjectionMatrix(aspect, projection);
+    camera.getProjectionMatrix(aspect, projection, depthZeroToOne);
     camera.getViewMatrix(view);
     Matrix4.multiply(projection, view, viewProjection);
     renderer.render(viewProjection.elements);
@@ -54,12 +54,12 @@ async function main(): Promise<void> {
 
 async function createRenderer(
   canvas: HTMLCanvasElement
-): Promise<{ renderer: Renderer; label: string }> {
+): Promise<{ renderer: Renderer; label: string; depthZeroToOne: boolean }> {
   if ("gpu" in navigator) {
     try {
       const webgpu = new WebGpuRenderer();
       await webgpu.initialize(canvas);
-      return { renderer: webgpu, label: "WebGPU" };
+      return { renderer: webgpu, label: "WebGPU", depthZeroToOne: true };
     } catch (error) {
       console.warn("WebGPU initialization failed, falling back to WebGL2.", error);
     }
@@ -67,7 +67,7 @@ async function createRenderer(
 
   const webgl = new WebGl2Renderer();
   await webgl.initialize(canvas);
-  return { renderer: webgl, label: "WebGL2" };
+  return { renderer: webgl, label: "WebGL2", depthZeroToOne: false };
 }
 
 function setupInput(

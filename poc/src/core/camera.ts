@@ -66,7 +66,18 @@ export class OrbitCamera {
     return Matrix4.lookAt(position, this.target, WORLD_UP, out);
   }
 
-  getProjectionMatrix(aspect: number, out = new Matrix4()): Matrix4 {
-    return Matrix4.perspective(this.fovY, aspect, this.near, this.far, out);
+  getProjectionMatrix(
+    aspect: number,
+    out = new Matrix4(),
+    depthZeroToOne = false
+  ): Matrix4 {
+    return Matrix4.perspective(
+      this.fovY,
+      aspect,
+      this.near,
+      this.far,
+      out,
+      depthZeroToOne
+    );
   }
 }
