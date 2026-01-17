@@ -5,6 +5,7 @@
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "serve": "node server.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "keywords": [],

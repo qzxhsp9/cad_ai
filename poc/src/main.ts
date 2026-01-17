@@ -27,6 +27,7 @@ async function main(): Promise<void> {
   renderer.setMesh(mesh);
 
   const params = new URLSearchParams(window.location.search);
+  const preset = params.get("preset") ?? undefined;
   const grid = buildGridConfig(params, {
     x: GRID_X,
     y: GRID_Y,
@@ -44,7 +45,8 @@ async function main(): Promise<void> {
     instances.count,
     fixture?.name,
     params.get("worker") === "1",
-    benchmark
+    benchmark,
+    preset
   );
   updateOverlay(overlay, overlayBase);
 
@@ -178,6 +180,17 @@ function resizeCanvasToDisplaySize(canvas: HTMLCanvasElement): {
 }
 
 function buildGridConfig(params: URLSearchParams, defaults: GridConfig): GridConfig {
+  const preset = params.get("preset");
+  if (preset === "100k") {
+    return {
+      x: 100,
+      y: 100,
+      z: 10,
+      spacing: defaults.spacing,
+      scale: defaults.scale
+    };
+  }
+
   return {
     x: readPositiveInt(params, "gridX", defaults.x),
     y: readPositiveInt(params, "gridY", defaults.y),
@@ -210,12 +223,14 @@ function buildOverlayBase(
   count: number,
   fixtureName: string | undefined,
   workerEnabled: boolean,
-  benchmark: boolean
+  benchmark: boolean,
+  presetName?: string
 ): string {
   const fixtureLabel = fixtureName ? ` | Fixture: ${fixtureName}` : "";
   const workerLabel = workerEnabled ? " | Worker" : "";
   const benchmarkLabel = benchmark ? " | Benchmark" : "";
-  return `${label} | Instances: ${count}${fixtureLabel}${workerLabel}${benchmarkLabel}`;
+  const presetLabel = presetName ? ` | Preset: ${presetName}` : "";
+  return `${label} | Instances: ${count}${fixtureLabel}${workerLabel}${benchmarkLabel}${presetLabel}`;
 }
 
 function updateOverlay(

@@ -31,6 +31,7 @@ Import steps:
 - Scene graph example: `docs/schema/scene_graph_v0.example.json`
 - TypeScript core types: `apps/web/src/core`
 - Math conventions: `docs/engineering/math_conventions.md`
+- Post-P1 plan: `docs/engineering/post_p1_plan.md`
 
 ## Kernel wasm
 - Build: `npm run kernel:wasm` (outputs to `crates/kernel/pkg`)
@@ -43,8 +44,10 @@ Build and run:
 2. `npm install`
 3. `npm run build`
 4. Serve the folder with a local static server (for example `python -m http.server 8080`) and open `http://localhost:8080/poc/index.html`.
-5. Optional regression fixture: add `?fixture=baseline` to the URL.
-6. Optional flags:
+5. For SharedArrayBuffer testing, run `npm run serve` in `poc` (adds COOP/COEP headers) and open `http://localhost:8080/index.html`.
+6. Optional regression fixture: add `?fixture=baseline` to the URL.
+7. Optional flags:
    - `?gridX=100&gridY=100&gridZ=10` to override grid size.
+   - `?preset=100k` to load the 100k instance preset.
    - `?benchmark=1` to run a continuous render loop with FPS.
    - `?worker=1` to generate instance matrices in a worker (uses SharedArrayBuffer when cross-origin isolated).
