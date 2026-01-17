@@ -6,6 +6,7 @@ import { Renderer } from "./renderer/renderer.js";
 import { WebGpuRenderer } from "./renderer/webgpu_renderer.js";
 import { WebGl2Renderer } from "./renderer/webgl2_renderer.js";
 import { frameCameraToGrid, getRegressionFixture } from "./fixtures/render_fixture.js";
+import type { GridConfig, WorkerResponse } from "./workers/worker_types.js";
 
 const GRID_X = 10;
 const GRID_Y = 10;
@@ -25,26 +26,22 @@ async function main(): Promise<void> {
   const mesh = Mesh.createCube(1);
   renderer.setMesh(mesh);
 
-  const grid = {
+  const grid: GridConfig = {
     x: GRID_X,
     y: GRID_Y,
     z: GRID_Z,
     spacing: SPACING,
     scale: SCALE
   };
-  const instances = createInstanceMatrices(
-    grid.x,
-    grid.y,
-    grid.z,
-    grid.spacing,
-    grid.scale
-  );
+  const instances = await createInstances(grid);
   renderer.setInstances(instances.matrices);
 
-  const fixture = getRegressionFixture(new URLSearchParams(window.location.search));
+  const params = new URLSearchParams(window.location.search);
+  const fixture = getRegressionFixture(params);
   if (overlay) {
     const fixtureLabel = fixture ? ` | Fixture: ${fixture.name}` : "";
-    overlay.textContent = `${label} | Instances: ${instances.count}${fixtureLabel}`;
+    const workerLabel = params.get("worker") === "1" ? " | Worker" : "";
+    overlay.textContent = `${label} | Instances: ${instances.count}${fixtureLabel}${workerLabel}`;
   }
 
   const camera = new OrbitCamera();
@@ -160,28 +157,89 @@ function resizeCanvasToDisplaySize(canvas: HTMLCanvasElement): {
   return { width, height, devicePixelRatio };
 }
 
-function createInstanceMatrices(
-  gridX: number,
-  gridY: number,
-  gridZ: number,
-  spacing: number,
-  scale: number
+async function createInstances(
+  grid: GridConfig
+): Promise<{ matrices: Float32Array; count: number }> {
+  const params = new URLSearchParams(window.location.search);
+  const useWorker = params.get("worker") === "1";
+  if (useWorker && "Worker" in window) {
+    try {
+      return await createInstancesWithWorker(grid);
+    } catch (error) {
+      console.warn("Worker path failed, using main thread.", error);
+    }
+  }
+
+  return createInstancesOnMain(grid);
+}
+
+async function createInstancesWithWorker(
+  grid: GridConfig
+): Promise<{ matrices: Float32Array; count: number }> {
+  const supportsShared =
+    typeof SharedArrayBuffer !== "undefined" && window.crossOriginIsolated;
+  const count = grid.x * grid.y * grid.z;
+  const sharedBuffer = supportsShared
+    ? new SharedArrayBuffer(count * 16 * 4)
+    : undefined;
+
+  const worker = new Worker(
+    new URL("./workers/instance_worker.js", import.meta.url),
+    { type: "module" }
+  );
+
+  const response = await new Promise<WorkerResponse>((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      worker.terminate();
+      reject(new Error("Worker timed out."));
+    }, 5000);
+
+    worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
+      const message = event.data;
+      if (message.type === "error") {
+        window.clearTimeout(timeout);
+        worker.terminate();
+        reject(new Error(message.message));
+        return;
+      }
+      if (message.type === "generated") {
+        window.clearTimeout(timeout);
+        worker.terminate();
+        resolve(message);
+      }
+    };
+
+    worker.postMessage({
+      type: "generate",
+      grid,
+      buffer: sharedBuffer
+    });
+  });
+
+  return {
+    matrices: new Float32Array(response.buffer),
+    count: response.count
+  };
+}
+
+function createInstancesOnMain(
+  grid: GridConfig
 ): { matrices: Float32Array; count: number } {
-  const count = gridX * gridY * gridZ;
+  const count = grid.x * grid.y * grid.z;
   const matrices = new Float32Array(count * 16);
 
-  const offsetX = -((gridX - 1) * spacing) * 0.5;
-  const offsetY = -((gridY - 1) * spacing) * 0.5;
-  const offsetZ = -((gridZ - 1) * spacing) * 0.5;
+  const offsetX = -((grid.x - 1) * grid.spacing) * 0.5;
+  const offsetY = -((grid.y - 1) * grid.spacing) * 0.5;
+  const offsetZ = -((grid.z - 1) * grid.spacing) * 0.5;
 
   let index = 0;
-  for (let z = 0; z < gridZ; z += 1) {
-    for (let y = 0; y < gridY; y += 1) {
-      for (let x = 0; x < gridX; x += 1) {
-        const tx = offsetX + x * spacing;
-        const ty = offsetY + y * spacing;
-        const tz = offsetZ + z * spacing;
-        writeInstanceMatrix(matrices, index * 16, tx, ty, tz, scale);
+  for (let z = 0; z < grid.z; z += 1) {
+    for (let y = 0; y < grid.y; y += 1) {
+      for (let x = 0; x < grid.x; x += 1) {
+        const tx = offsetX + x * grid.spacing;
+        const ty = offsetY + y * grid.spacing;
+        const tz = offsetZ + z * grid.spacing;
+        writeInstanceMatrix(matrices, index * 16, tx, ty, tz, grid.scale);
         index += 1;
       }
     }

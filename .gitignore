@@ -6,3 +6,4 @@ poc/node_modules/
 poc/dist/
 apps/**/node_modules/
 apps/**/dist/
+crates/kernel/pkg/

@@ -6,5 +6,6 @@ ISSUE-0004,Define command execution spec,"Define how draw/transform/delete comma
 ISSUE-0005,SceneGraph command executor,"Implement minimal command executor for draw_line/transform/delete","Commands apply and undo/redo passes tests","ISSUE-0004",Open
 ISSUE-0006,Geometry buffer builder,"Convert SceneGraph geometry assets into GPU-ready buffers","Buffer layout validated with a sample mesh","ISSUE-0003",Open
 ISSUE-0007,Renderer bridge wiring,"Wire SceneGraph to renderer buffers and camera updates","SceneGraph renders via renderer without manual mesh setup","ISSUE-0005,ISSUE-0006",Open
-ISSUE-0008,Worker pipeline stub,"Add worker entry points for geometry build and parsing","Worker interfaces defined; main thread invokes worker","ISSUE-0003",Open
-ISSUE-0009,SharedArrayBuffer channel,"Design data transfer contract for zero-copy buffers","SAB contract documented; fallback path defined","ISSUE-0008",Open
+ISSUE-0008,Worker pipeline stub,"Add worker entry points for geometry build and parsing","Worker interfaces defined; main thread invokes worker","ISSUE-0003",Done
+ISSUE-0009,SharedArrayBuffer channel,"Design data transfer contract for zero-copy buffers","SAB contract documented; fallback path defined","ISSUE-0008",Done
+ISSUE-0010,Configure wasm-pack pipeline,"Add wasm-pack build script and kernel wasm bindings","wasm-pack build succeeds; wasm exports available","",Open

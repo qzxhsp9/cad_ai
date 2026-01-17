@@ -4,6 +4,7 @@
   "workspaces": ["apps/*", "poc"],
   "scripts": {
     "poc:build": "npm --prefix poc run build",
-    "poc:typecheck": "npm --prefix poc run typecheck"
+    "poc:typecheck": "npm --prefix poc run typecheck",
+    "kernel:wasm": "wasm-pack build crates/kernel --target web"
   }
 }

@@ -32,6 +32,9 @@ Import steps:
 - TypeScript core types: `apps/web/src/core`
 - Math conventions: `docs/engineering/math_conventions.md`
 
+## Kernel wasm
+- Build: `npm run kernel:wasm` (outputs to `crates/kernel/pkg`)
+
 ## POC renderer
 The `poc` folder contains a minimal WebGPU/WebGL2 renderer and core math types.
 
