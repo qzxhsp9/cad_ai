@@ -32,6 +32,12 @@ async function main(): Promise<void> {
   }
 
   const camera = new OrbitCamera();
+  const halfX = ((GRID_X - 1) * SPACING) * 0.5;
+  const halfY = ((GRID_Y - 1) * SPACING) * 0.5;
+  const halfZ = ((GRID_Z - 1) * SPACING) * 0.5;
+  const radius = Math.hypot(halfX, halfY, halfZ) + SPACING;
+  camera.distance = Math.max(camera.distance, radius * 2.2);
+  camera.maxDistance = Math.max(camera.maxDistance, camera.distance * 2);
   const view = new Matrix4();
   const projection = new Matrix4();
   const viewProjection = new Matrix4();
