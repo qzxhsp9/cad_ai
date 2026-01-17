@@ -1,3 +1,7 @@
+mod scene;
+
+pub use scene::*;
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Vector3 {
     pub x: f64,

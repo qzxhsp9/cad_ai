@@ -1,0 +1,236 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/scene_graph_v0.schema.json",
+  "title": "SceneGraph v0",
+  "type": "object",
+  "required": ["schemaVersion", "metadata", "entities", "components", "assets"],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "enum": ["v0"]
+    },
+    "metadata": {
+      "type": "object",
+      "required": ["name", "unit", "upAxis", "createdAt", "updatedAt"],
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "unit": { "type": "string", "enum": ["mm", "cm", "m"] },
+        "upAxis": { "type": "string", "enum": ["X", "Y", "Z"] },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "entities": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/EntityRecord" }
+    },
+    "components": {
+      "type": "object",
+      "required": ["transforms", "geometries", "materials", "layers", "metadata"],
+      "properties": {
+        "transforms": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/TransformComponent" }
+        },
+        "geometries": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/GeometryComponent" }
+        },
+        "materials": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/MaterialComponent" }
+        },
+        "layers": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/LayerComponent" }
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/MetadataComponent" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "assets": {
+      "type": "object",
+      "required": ["meshes", "materials", "textures"],
+      "properties": {
+        "meshes": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/MeshAsset" }
+        },
+        "materials": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/MaterialAsset" }
+        },
+        "textures": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/TextureAsset" }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "Vector3": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": { "type": "number" }
+    },
+    "Vector4": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": { "type": "number" }
+    },
+    "EntityRecord": {
+      "type": "object",
+      "required": ["id", "components"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "components": {
+          "type": "object",
+          "properties": {
+            "transform": { "type": "string" },
+            "geometry": { "type": "string" },
+            "material": { "type": "string" },
+            "layer": { "type": "string" },
+            "metadata": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "TransformComponent": {
+      "type": "object",
+      "required": ["position", "rotation", "scale"],
+      "properties": {
+        "position": { "$ref": "#/$defs/Vector3" },
+        "rotation": { "$ref": "#/$defs/Vector3" },
+        "scale": { "$ref": "#/$defs/Vector3" }
+      },
+      "additionalProperties": false
+    },
+    "GeometryComponent": {
+      "type": "object",
+      "required": ["mesh", "topology"],
+      "properties": {
+        "mesh": { "type": "string" },
+        "topology": { "type": "string", "enum": ["triangles", "lines"] },
+        "localBounds": {
+          "type": "object",
+          "required": ["min", "max"],
+          "properties": {
+            "min": { "$ref": "#/$defs/Vector3" },
+            "max": { "$ref": "#/$defs/Vector3" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "MaterialComponent": {
+      "type": "object",
+      "required": ["baseColor", "metallic", "roughness", "opacity"],
+      "properties": {
+        "baseColor": { "$ref": "#/$defs/Vector4" },
+        "metallic": { "type": "number" },
+        "roughness": { "type": "number" },
+        "opacity": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+    "LayerComponent": {
+      "type": "object",
+      "required": ["name", "visible", "locked"],
+      "properties": {
+        "name": { "type": "string" },
+        "visible": { "type": "boolean" },
+        "locked": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "MetadataComponent": {
+      "type": "object",
+      "required": ["tags", "properties"],
+      "properties": {
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "properties": {
+          "type": "object",
+          "additionalProperties": {
+            "type": ["string", "number", "boolean", "null"]
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "MeshAsset": {
+      "type": "object",
+      "required": ["id", "vertexCount", "indexCount", "indexFormat", "topology", "layout"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "vertexCount": { "type": "integer", "minimum": 0 },
+        "indexCount": { "type": "integer", "minimum": 0 },
+        "indexFormat": { "type": "string", "enum": ["uint16", "uint32"] },
+        "topology": { "type": "string", "enum": ["triangles", "lines"] },
+        "layout": {
+          "type": "object",
+          "properties": {
+            "position": { "$ref": "#/$defs/BufferLayoutEntry" },
+            "normal": { "$ref": "#/$defs/BufferLayoutEntry" },
+            "uv": { "$ref": "#/$defs/BufferLayoutEntry" }
+          },
+          "required": ["position"],
+          "additionalProperties": false
+        },
+        "sourceUri": { "type": "string" },
+        "bounds": {
+          "type": "object",
+          "required": ["min", "max"],
+          "properties": {
+            "min": { "$ref": "#/$defs/Vector3" },
+            "max": { "$ref": "#/$defs/Vector3" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "BufferLayoutEntry": {
+      "type": "object",
+      "required": ["offset", "stride"],
+      "properties": {
+        "offset": { "type": "integer", "minimum": 0 },
+        "stride": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "MaterialAsset": {
+      "type": "object",
+      "required": ["id", "baseColor"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "baseColor": { "$ref": "#/$defs/Vector4" }
+      },
+      "additionalProperties": false
+    },
+    "TextureAsset": {
+      "type": "object",
+      "required": ["id", "uri"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "uri": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
