@@ -1,1 +1,1 @@
-export * from "./command_executor";
+export * from "./command_executor.js";

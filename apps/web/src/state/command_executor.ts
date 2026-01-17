@@ -1,7 +1,6 @@
 import {
   AssetId,
   Command,
-  CommandId,
   ComponentRefs,
   EntityId,
   GeometryComponent,
@@ -11,7 +10,7 @@ import {
   SceneGraph,
   TransformComponent,
   Vector3
-} from "../core";
+} from "../core/index.js";
 
 export interface CommandContext {
   idFactory: IdFactory;

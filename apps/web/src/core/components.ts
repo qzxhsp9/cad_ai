@@ -1,4 +1,4 @@
-import { AssetId, ComponentId } from "./ids";
+import { AssetId, ComponentId } from "./ids.js";
 
 export type Vector3 = [number, number, number];
 export type Vector4 = [number, number, number, number];

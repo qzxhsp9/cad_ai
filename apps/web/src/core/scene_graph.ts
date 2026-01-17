@@ -1,10 +1,10 @@
-import { AssetId, EntityId } from "./ids";
+import { AssetId, EntityId } from "./ids.js";
 import {
   ComponentRefs,
   ComponentTable,
   GeometryTopology,
   Vector3
-} from "./components";
+} from "./components.js";
 
 export type SchemaVersion = "v0";
 export type Axis = "X" | "Y" | "Z";

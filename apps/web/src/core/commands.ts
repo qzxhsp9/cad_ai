@@ -1,5 +1,5 @@
-import { CommandId, EntityId } from "./ids";
-import { Vector3 } from "./components";
+import { CommandId, EntityId } from "./ids.js";
+import { Vector3 } from "./components.js";
 
 export type CommandType =
   | "draw_line"

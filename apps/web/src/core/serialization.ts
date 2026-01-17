@@ -1,5 +1,5 @@
-import { createEmptyComponentTable } from "./components";
-import { SceneGraph, SceneMetadata, SchemaVersion } from "./scene_graph";
+import { createEmptyComponentTable } from "./components.js";
+import { SceneGraph, SceneMetadata, SchemaVersion } from "./scene_graph.js";
 
 export const SCHEMA_VERSION: SchemaVersion = "v0";
 
