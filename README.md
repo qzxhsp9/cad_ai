@@ -44,3 +44,7 @@ Build and run:
 3. `npm run build`
 4. Serve the folder with a local static server (for example `python -m http.server 8080`) and open `http://localhost:8080/poc/index.html`.
 5. Optional regression fixture: add `?fixture=baseline` to the URL.
+6. Optional flags:
+   - `?gridX=100&gridY=100&gridZ=10` to override grid size.
+   - `?benchmark=1` to run a continuous render loop with FPS.
+   - `?worker=1` to generate instance matrices in a worker (uses SharedArrayBuffer when cross-origin isolated).

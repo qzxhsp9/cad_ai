@@ -26,29 +26,39 @@ async function main(): Promise<void> {
   const mesh = Mesh.createCube(1);
   renderer.setMesh(mesh);
 
-  const grid: GridConfig = {
+  const params = new URLSearchParams(window.location.search);
+  const grid = buildGridConfig(params, {
     x: GRID_X,
     y: GRID_Y,
     z: GRID_Z,
     spacing: SPACING,
     scale: SCALE
-  };
+  });
   const instances = await createInstances(grid);
   renderer.setInstances(instances.matrices);
 
-  const params = new URLSearchParams(window.location.search);
   const fixture = getRegressionFixture(params);
-  if (overlay) {
-    const fixtureLabel = fixture ? ` | Fixture: ${fixture.name}` : "";
-    const workerLabel = params.get("worker") === "1" ? " | Worker" : "";
-    overlay.textContent = `${label} | Instances: ${instances.count}${fixtureLabel}${workerLabel}`;
-  }
+  const benchmark = params.get("benchmark") === "1";
+  const overlayBase = buildOverlayBase(
+    label,
+    instances.count,
+    fixture?.name,
+    params.get("worker") === "1",
+    benchmark
+  );
+  updateOverlay(overlay, overlayBase);
 
   const camera = new OrbitCamera();
   frameCameraToGrid(camera, grid, fixture?.camera);
   const view = new Matrix4();
   const projection = new Matrix4();
   const viewProjection = new Matrix4();
+
+  const stats = {
+    frames: 0,
+    lastTime: performance.now(),
+    fps: 0
+  };
 
   const scheduler = new RenderScheduler(() => {
     const { width, height, devicePixelRatio } = resizeCanvasToDisplaySize(canvas);
@@ -59,11 +69,21 @@ async function main(): Promise<void> {
     camera.getViewMatrix(view);
     Matrix4.multiply(projection, view, viewProjection);
     renderer.render(viewProjection.elements);
+
+    if (benchmark) {
+      updateFps(stats, (fps) => {
+        updateOverlay(overlay, `${overlayBase} | FPS: ${fps.toFixed(1)}`);
+      });
+    }
   });
 
   setupInput(canvas, camera, scheduler);
   window.addEventListener("resize", () => scheduler.invalidate());
-  scheduler.invalidate();
+  if (benchmark) {
+    scheduler.startContinuous();
+  } else {
+    scheduler.invalidate();
+  }
 }
 
 async function createRenderer(
@@ -155,6 +175,72 @@ function resizeCanvasToDisplaySize(canvas: HTMLCanvasElement): {
     canvas.height = height;
   }
   return { width, height, devicePixelRatio };
+}
+
+function buildGridConfig(params: URLSearchParams, defaults: GridConfig): GridConfig {
+  return {
+    x: readPositiveInt(params, "gridX", defaults.x),
+    y: readPositiveInt(params, "gridY", defaults.y),
+    z: readPositiveInt(params, "gridZ", defaults.z),
+    spacing: readPositiveFloat(params, "spacing", defaults.spacing),
+    scale: readPositiveFloat(params, "scale", defaults.scale)
+  };
+}
+
+function readPositiveInt(
+  params: URLSearchParams,
+  key: string,
+  fallback: number
+): number {
+  const value = Number.parseInt(params.get(key) ?? "", 10);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+function readPositiveFloat(
+  params: URLSearchParams,
+  key: string,
+  fallback: number
+): number {
+  const value = Number.parseFloat(params.get(key) ?? "");
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+function buildOverlayBase(
+  label: string,
+  count: number,
+  fixtureName: string | undefined,
+  workerEnabled: boolean,
+  benchmark: boolean
+): string {
+  const fixtureLabel = fixtureName ? ` | Fixture: ${fixtureName}` : "";
+  const workerLabel = workerEnabled ? " | Worker" : "";
+  const benchmarkLabel = benchmark ? " | Benchmark" : "";
+  return `${label} | Instances: ${count}${fixtureLabel}${workerLabel}${benchmarkLabel}`;
+}
+
+function updateOverlay(
+  overlay: HTMLElement | null,
+  text: string
+): void {
+  if (!overlay) {
+    return;
+  }
+  overlay.textContent = text;
+}
+
+function updateFps(
+  stats: { frames: number; lastTime: number; fps: number },
+  onUpdate: (fps: number) => void
+): void {
+  stats.frames += 1;
+  const now = performance.now();
+  const elapsed = now - stats.lastTime;
+  if (elapsed >= 1000) {
+    stats.fps = (stats.frames * 1000) / elapsed;
+    stats.frames = 0;
+    stats.lastTime = now;
+    onUpdate(stats.fps);
+  }
 }
 
 async function createInstances(
