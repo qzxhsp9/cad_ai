@@ -14,10 +14,10 @@ test("builds line buffers from metadata", () => {
 
   const command = {
     id: idFactory.nextCommandId(),
-    type: "draw_line",
+    type: "draw_line" as const,
     createdAt: "2026-01-18T00:00:00Z",
-    start: [0, 0, 0],
-    end: [1, 0, 0]
+    start: [0, 0, 0] as [number, number, number],
+    end: [1, 0, 0] as [number, number, number]
   };
 
   const result = applyCommand(scene, command, { idFactory });
