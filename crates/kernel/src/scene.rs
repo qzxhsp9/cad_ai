@@ -7,6 +7,11 @@ pub type ComponentId = u64;
 pub type AssetId = u64;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
+pub enum SchemaVersion {
+    V0,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Axis {
     X,
     Y,
@@ -23,6 +28,7 @@ pub enum Unit {
 #[derive(Clone, Debug, PartialEq)]
 pub struct SceneMetadata {
     pub name: String,
+    pub description: Option<String>,
     pub unit: Unit,
     pub up_axis: Axis,
     pub created_at: String,
@@ -73,6 +79,15 @@ pub struct LayerComponent {
 #[derive(Clone, Debug, PartialEq)]
 pub struct MetadataComponent {
     pub tags: Vec<String>,
+    pub properties: BTreeMap<String, MetadataValue>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum MetadataValue {
+    String(String),
+    Number(f64),
+    Bool(bool),
+    Null,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -101,22 +116,48 @@ pub struct ComponentTable {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct MeshAsset {
-    pub id: AssetId,
-    pub vertex_count: u32,
-    pub index_count: u32,
-    pub topology: GeometryTopology,
+pub enum IndexFormat {
+    Uint16,
+    Uint32,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
+pub struct BufferLayoutEntry {
+    pub offset: u32,
+    pub stride: u32,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct BufferLayout {
+    pub position: BufferLayoutEntry,
+    pub normal: Option<BufferLayoutEntry>,
+    pub uv: Option<BufferLayoutEntry>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct MeshAsset {
+    pub id: AssetId,
+    pub name: Option<String>,
+    pub vertex_count: u32,
+    pub index_count: u32,
+    pub index_format: IndexFormat,
+    pub topology: GeometryTopology,
+    pub layout: BufferLayout,
+    pub source_uri: Option<String>,
+    pub bounds: Option<Aabb>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct MaterialAsset {
     pub id: AssetId,
+    pub name: Option<String>,
     pub base_color: [f32; 4],
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct TextureAsset {
     pub id: AssetId,
+    pub name: Option<String>,
     pub uri: String,
 }
 
@@ -129,7 +170,7 @@ pub struct AssetRegistry {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct SceneGraph {
-    pub schema_version: u32,
+    pub schema_version: SchemaVersion,
     pub metadata: SceneMetadata,
     pub entities: Vec<EntityRecord>,
     pub components: ComponentTable,

@@ -28,6 +28,7 @@ Import steps:
 
 ## Data model
 - JSON schema: `docs/schema/scene_graph_v0.json`
+- Scene graph example: `docs/schema/scene_graph_v0.example.json`
 - TypeScript core types: `apps/web/src/core`
 - Math conventions: `docs/engineering/math_conventions.md`
 

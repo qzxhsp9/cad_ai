@@ -1,0 +1,70 @@
+{
+  "schemaVersion": "v0",
+  "metadata": {
+    "name": "Baseline Scene",
+    "description": "Single cube instance",
+    "unit": "mm",
+    "upAxis": "Y",
+    "createdAt": "2026-01-17T00:00:00Z",
+    "updatedAt": "2026-01-17T00:00:00Z"
+  },
+  "entities": [
+    {
+      "id": "entity_1",
+      "name": "Cube",
+      "components": {
+        "transform": "transform_1",
+        "geometry": "geometry_1",
+        "material": "material_1"
+      }
+    }
+  ],
+  "components": {
+    "transforms": {
+      "transform_1": {
+        "position": [0, 0, 0],
+        "rotation": [0, 0, 0],
+        "scale": [1, 1, 1]
+      }
+    },
+    "geometries": {
+      "geometry_1": {
+        "mesh": "mesh_1",
+        "topology": "triangles"
+      }
+    },
+    "materials": {
+      "material_1": {
+        "baseColor": [0.65, 0.78, 1.0, 1.0],
+        "metallic": 0,
+        "roughness": 0.4,
+        "opacity": 1
+      }
+    },
+    "layers": {},
+    "metadata": {}
+  },
+  "assets": {
+    "meshes": {
+      "mesh_1": {
+        "id": "mesh_1",
+        "name": "UnitCube",
+        "vertexCount": 8,
+        "indexCount": 36,
+        "indexFormat": "uint16",
+        "topology": "triangles",
+        "layout": {
+          "position": { "offset": 0, "stride": 12 }
+        }
+      }
+    },
+    "materials": {
+      "material_1": {
+        "id": "material_1",
+        "name": "Default",
+        "baseColor": [0.65, 0.78, 1.0, 1.0]
+      }
+    },
+    "textures": {}
+  }
+}

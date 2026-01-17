@@ -1,7 +1,7 @@
 Issue ID,Title,Description,Acceptance criteria,Dependencies,Status
-ISSUE-0001,Lock math conventions,"Define column-major, right-handed, and depth-range rules used across TS/Rust and document them","Math conventions doc created; TS/Rust helper functions aligned","",Open
-ISSUE-0002,Add render regression fixture,"Add a deterministic camera + instance grid fixture to validate visibility while orbiting","Fixture renders stable; no popping while orbiting","ISSUE-0001",Open
-ISSUE-0003,Finalize SceneGraph v0 schema,"Confirm JSON schema and TS types as source of truth for v0","Schema and TS types aligned; version tagged v0","ISSUE-0001",Open
+ISSUE-0001,Lock math conventions,"Define column-major, right-handed, and depth-range rules used across TS/Rust and document them","Math conventions doc created; TS/Rust helper functions aligned","",Done
+ISSUE-0002,Add render regression fixture,"Add a deterministic camera + instance grid fixture to validate visibility while orbiting","Fixture renders stable; no popping while orbiting","ISSUE-0001",Done
+ISSUE-0003,Finalize SceneGraph v0 schema,"Confirm JSON schema and TS types as source of truth for v0","Schema and TS types aligned; version tagged v0","ISSUE-0001",Done
 ISSUE-0004,Define command execution spec,"Define how draw/transform/delete commands mutate SceneGraph and undo/redo","Spec + TS stubs with tests in place","ISSUE-0003",Open
 ISSUE-0005,SceneGraph command executor,"Implement minimal command executor for draw_line/transform/delete","Commands apply and undo/redo passes tests","ISSUE-0004",Open
 ISSUE-0006,Geometry buffer builder,"Convert SceneGraph geometry assets into GPU-ready buffers","Buffer layout validated with a sample mesh","ISSUE-0003",Open
