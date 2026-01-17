@@ -1,6 +1,12 @@
 import { GridConfig, WorkerRequest, WorkerResponse } from "./worker_types.js";
 
-const ctx: DedicatedWorkerGlobalScope = self as DedicatedWorkerGlobalScope;
+type WorkerContext = {
+  postMessage: (message: unknown, transfer?: Transferable[]) => void;
+  close: () => void;
+  onmessage: ((event: MessageEvent<WorkerRequest>) => void) | null;
+};
+
+const ctx = self as unknown as WorkerContext;
 
 ctx.onmessage = (event: MessageEvent<WorkerRequest>) => {
   const payload = event.data;
