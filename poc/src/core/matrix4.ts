@@ -158,15 +158,15 @@ export class Matrix4 {
 
     const e = out.elements;
     e[0] = xAxis.x;
-    e[1] = yAxis.x;
-    e[2] = zAxis.x;
+    e[1] = xAxis.y;
+    e[2] = xAxis.z;
     e[3] = 0;
-    e[4] = xAxis.y;
+    e[4] = yAxis.x;
     e[5] = yAxis.y;
-    e[6] = zAxis.y;
+    e[6] = yAxis.z;
     e[7] = 0;
-    e[8] = xAxis.z;
-    e[9] = yAxis.z;
+    e[8] = zAxis.x;
+    e[9] = zAxis.y;
     e[10] = zAxis.z;
     e[11] = 0;
     e[12] = -xAxis.dot(eye);
