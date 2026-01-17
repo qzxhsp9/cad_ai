@@ -7,7 +7,7 @@ import {
 } from "../workers/geometry_worker_shared.js";
 
 export interface GeometryWorkerAdapter {
-  postMessage(message: GeometryWorkerRequest, transfer?: ArrayBuffer[]): void;
+  postMessage(message: GeometryWorkerRequest, transfer?: ArrayBufferLike[]): void;
   terminate(): void;
   onmessage: ((event: { data: GeometryWorkerMessage }) => void) | null;
 }

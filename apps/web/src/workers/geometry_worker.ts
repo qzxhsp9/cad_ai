@@ -12,7 +12,7 @@ type WorkerContext = {
   close: () => void;
 };
 
-const ctx = self as unknown as WorkerContext;
+const ctx = globalThis as unknown as WorkerContext;
 
 ctx.onmessage = (event) => {
   const payload = event.data;
@@ -21,8 +21,7 @@ ctx.onmessage = (event) => {
   }
 
   try {
-    const scene = payload.scene;
-    const buffers = serializeGeometryBuffers(buildGeometryBuffers(scene));
+    const buffers = serializeGeometryBuffers(buildGeometryBuffers(payload.scene));
     const transfer = collectTransferables(buffers);
     ctx.postMessage({ type: "built", buffers }, transfer);
   } catch (error) {

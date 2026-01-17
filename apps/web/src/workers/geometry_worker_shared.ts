@@ -1,11 +1,11 @@
-import { AssetId, GeometryTopology } from "../core/index.js";
+import { AssetId, GeometryTopology, SceneGraph } from "../core/index.js";
 import { GeometryBufferMap, MeshBuffers } from "../renderer/geometry_builder.js";
 
 export type IndexFormat = "uint16" | "uint32";
 
 export interface SerializedMeshBuffers {
-  positions: ArrayBuffer;
-  indices: ArrayBuffer;
+  positions: ArrayBufferLike;
+  indices: ArrayBufferLike;
   indexFormat: IndexFormat;
   topology: GeometryTopology;
 }
@@ -16,7 +16,7 @@ export interface SerializedGeometryBufferMap {
 
 export interface GeometryWorkerRequest {
   type: "build";
-  scene: unknown;
+  scene: SceneGraph;
 }
 
 export interface GeometryWorkerResponse {
@@ -73,15 +73,15 @@ export function deserializeGeometryBuffers(
 
 export function collectTransferables(
   payload: SerializedGeometryBufferMap
-): ArrayBuffer[] {
-  const buffers: ArrayBuffer[] = [];
+): ArrayBufferLike[] {
+  const buffers: ArrayBufferLike[] = [];
   for (const mesh of Object.values(payload.meshes)) {
     buffers.push(mesh.positions, mesh.indices);
   }
   return buffers;
 }
 
-function copyBuffer(data: ArrayBufferView): ArrayBuffer {
+function copyBuffer(data: ArrayBufferView): ArrayBufferLike {
   const { buffer, byteOffset, byteLength } = data;
   if (byteOffset === 0 && byteLength === buffer.byteLength) {
     return buffer.slice(0);
