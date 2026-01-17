@@ -108,10 +108,10 @@ export class Matrix4 {
     aspect: number,
     near: number,
     far: number,
-    out = new Matrix4()
+    out = new Matrix4(),
+    depthZeroToOne = false
   ): Matrix4 {
     const f = 1 / Math.tan(fovYRadians / 2);
-    const nf = 1 / (near - far);
     const e = out.elements;
 
     e[0] = f / aspect;
@@ -124,6 +124,18 @@ export class Matrix4 {
     e[7] = 0;
     e[8] = 0;
     e[9] = 0;
+    if (depthZeroToOne) {
+      const nf = 1 / (near - far);
+      e[10] = far * nf;
+      e[11] = -1;
+      e[12] = 0;
+      e[13] = 0;
+      e[14] = far * near * nf;
+      e[15] = 0;
+      return out;
+    }
+
+    const nf = 1 / (near - far);
     e[10] = (far + near) * nf;
     e[11] = -1;
     e[12] = 0;
