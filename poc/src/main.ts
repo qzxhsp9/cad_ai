@@ -6,9 +6,9 @@ import { Renderer } from "./renderer/renderer.js";
 import { WebGpuRenderer } from "./renderer/webgpu_renderer.js";
 import { WebGl2Renderer } from "./renderer/webgl2_renderer.js";
 
-const GRID_X = 100;
-const GRID_Y = 100;
-const GRID_Z = 10;
+const GRID_X = 10;
+const GRID_Y = 10;
+const GRID_Z = 1;
 const SPACING = 2.0;
 const SCALE = 0.9;
 
