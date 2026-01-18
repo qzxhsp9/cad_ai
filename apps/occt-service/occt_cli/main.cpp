@@ -147,7 +147,6 @@ int main(int argc, char** argv) {
     }
 
     const gp_Trsf transform = location.Transformation();
-    const auto& nodes = triangulation->Nodes();
     const auto& triangles = triangulation->Triangles();
     const bool reversed = (face.Orientation() == TopAbs_REVERSED);
 
@@ -157,9 +156,9 @@ int main(int argc, char** argv) {
       int i3;
       triangles(i).Get(i1, i2, i3);
 
-      gp_Pnt p1 = nodes(i1).Transformed(transform);
-      gp_Pnt p2 = nodes(i2).Transformed(transform);
-      gp_Pnt p3 = nodes(i3).Transformed(transform);
+      gp_Pnt p1 = triangulation->Node(i1).Transformed(transform);
+      gp_Pnt p2 = triangulation->Node(i2).Transformed(transform);
+      gp_Pnt p3 = triangulation->Node(i3).Transformed(transform);
 
       Vec3 v1{p1.X() * scale, p1.Y() * scale, p1.Z() * scale};
       Vec3 v2{p2.X() * scale, p2.Y() * scale, p2.Z() * scale};
