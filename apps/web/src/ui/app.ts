@@ -1216,14 +1216,18 @@ function render3d(view: View3D): void {
   if (width === 0 || height === 0) {
     return;
   }
+  const bounds = computeSceneBounds3d(scene.shapes, state.importedModel);
+  const sceneSize = bounds ? getBoundsSize(bounds) : 10;
   if (!view.userMoved) {
-    autoFocus3d(view);
+    autoFocus3d(view, sceneSize);
   }
   gl.viewport(0, 0, width, height);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
   const aspect = viewport.width / Math.max(1, viewport.height);
-  const projection = mat4Perspective((60 * Math.PI) / 180, aspect, 0.1, 500);
+  const near = Math.max(sceneSize * 0.02, 0.0001);
+  const far = Math.max(sceneSize * 200, view.camera.distance * 4, 10);
+  const projection = mat4Perspective((60 * Math.PI) / 180, aspect, near, far);
   const eye = orbitCameraPosition(view.camera);
   const viewMat = mat4LookAt(eye, view.camera.target, { x: 0, y: 1, z: 0 });
   const viewProj = mat4Multiply(projection, viewMat);
@@ -1238,7 +1242,7 @@ function render3d(view: View3D): void {
   gl.bindVertexArray(null);
 }
 
-function autoFocus3d(view: View3D): void {
+function autoFocus3d(view: View3D, sceneSize: number): void {
   const bounds = computeSceneBounds3d(scene.shapes, state.importedModel);
   if (!bounds) {
     return;
@@ -1248,13 +1252,8 @@ function autoFocus3d(view: View3D): void {
     y: (bounds.min.y + bounds.max.y) * 0.5,
     z: (bounds.min.z + bounds.max.z) * 0.5
   };
-  const size = Math.max(
-    bounds.max.x - bounds.min.x,
-    bounds.max.y - bounds.min.y,
-    bounds.max.z - bounds.min.z
-  );
-  const safeSize = Math.max(size, 0.001);
-  view.camera.distance = clamp(safeSize * 2.5, 0.4, 500);
+  const safeSize = Math.max(sceneSize, 0.0001);
+  view.camera.distance = clamp(safeSize * 4, safeSize * 0.4, 500);
 }
 
 function build3dGeometry(
@@ -1444,6 +1443,14 @@ function computeSceneBounds3d(
     bounds.max.z = Math.max(bounds.max.z, shapeBounds.max.z);
   });
   return bounds;
+}
+
+function getBoundsSize(bounds: { min: Vec3; max: Vec3 }): number {
+  return Math.max(
+    bounds.max.x - bounds.min.x,
+    bounds.max.y - bounds.min.y,
+    bounds.max.z - bounds.min.z
+  );
 }
 
 function getShapeBounds3d(shape: Shape): { min: Vec3; max: Vec3 } {
