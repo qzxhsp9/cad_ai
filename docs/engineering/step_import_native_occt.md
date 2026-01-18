@@ -61,8 +61,14 @@ Import a STEP file using native OCCT and visualize its output in the web 3D view
 - Configure:
   1. `cmake -S . -B build -DOpenCASCADE_DIR=<path>`
   2. `cmake --build build --config Release`
-- Binary: `build/occt_step_export`
+- Binary:
+  - Linux/macOS: `build/occt_step_export`
+  - Windows: `build/Release/occt_step_export.exe`
 - Arguments: `occt_step_export <file.step> --deflection 0.1 --angle 0.5 --unit mm`
+
+## Troubleshooting
+- If the service returns 500, check the OCCT service logs for missing `OCCT_CLI` or DLL errors.
+- On Windows, add OCCT `bin` to `PATH` so the CLI can load OCCT DLLs.
 
 ## 3D view rendering plan
 - Triangles: shaded or flat color for surface validation.

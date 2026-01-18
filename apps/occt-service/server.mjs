@@ -41,6 +41,7 @@ app.post("/api/step/import", upload.single("file"), async (req, res) => {
       meshCount: result.meshes?.length ?? 0
     });
   } catch (error) {
+    console.error(error);
     res.status(500).json({
       error: error instanceof Error ? error.message : "STEP import failed."
     });
@@ -78,12 +79,7 @@ function readUnit(value) {
 }
 
 async function runOcctCli(filePath, options) {
-  const cliPath = resolve(
-    process.env.OCCT_CLI ?? join(process.cwd(), "occt_cli", "build", "occt_step_export")
-  );
-  if (!existsSync(cliPath)) {
-    throw new Error("OCCT_CLI not found. Build occt_cli or set OCCT_CLI.");
-  }
+  const cliPath = resolveOcctCliPath();
 
   const args = [
     filePath,
@@ -95,8 +91,18 @@ async function runOcctCli(filePath, options) {
     options.unit
   ];
 
-  const { stdout } = await runCommand(cliPath, args);
-  return JSON.parse(stdout);
+  const { stdout, stderr } = await runCommand(cliPath, args);
+  const trimmed = stdout.trim();
+  if (!trimmed) {
+    throw new Error(`OCCT CLI returned empty output. ${formatStdErr(stderr)}`);
+  }
+  try {
+    return JSON.parse(trimmed);
+  } catch (error) {
+    throw new Error(
+      `Failed to parse OCCT CLI output. ${formatStdErr(stderr)} Output: ${truncate(trimmed, 400)}`
+    );
+  }
 }
 
 function runCommand(command, args) {
@@ -113,10 +119,48 @@ function runCommand(command, args) {
     child.on("error", (error) => reject(error));
     child.on("close", (code) => {
       if (code !== 0) {
-        reject(new Error(stderr || `OCCT CLI exited with code ${code}`));
+        reject(new Error(formatStdErr(stderr) || `OCCT CLI exited with code ${code}`));
         return;
       }
       resolve({ stdout, stderr });
     });
   });
+}
+
+function resolveOcctCliPath() {
+  const candidates = [];
+  const envPath = process.env.OCCT_CLI;
+  if (envPath) {
+    candidates.push(resolve(envPath));
+    if (process.platform === "win32" && !envPath.endsWith(".exe")) {
+      candidates.push(resolve(`${envPath}.exe`));
+    }
+  }
+  const base = resolve(join(process.cwd(), "occt_cli", "build", "occt_step_export"));
+  candidates.push(base);
+  if (process.platform === "win32") {
+    candidates.push(`${base}.exe`);
+    candidates.push(resolve(join(process.cwd(), "occt_cli", "build", "Release", "occt_step_export.exe")));
+  }
+
+  const found = candidates.find((candidate) => existsSync(candidate));
+  if (!found) {
+    throw new Error(`OCCT_CLI not found. Tried: ${candidates.join(", ")}`);
+  }
+  return found;
+}
+
+function formatStdErr(stderr) {
+  const trimmed = stderr?.trim();
+  if (!trimmed) {
+    return "";
+  }
+  return `stderr: ${truncate(trimmed, 300)}`;
+}
+
+function truncate(value, maxLength) {
+  if (value.length <= maxLength) {
+    return value;
+  }
+  return `${value.slice(0, maxLength)}...(${value.length} chars)`;
 }

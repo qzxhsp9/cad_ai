@@ -14,6 +14,10 @@ Local native OCCT service for STEP import and mesh extraction.
 - `OCCT_CLI` path to `occt_step_export`
 - `CORS_ORIGIN` (default `*`)
 
+## Windows notes
+- The binary is typically `build/Release/occt_step_export.exe`.
+- Ensure OCCT `bin` directory is on `PATH` so the EXE can find DLLs.
+
 ## API
 POST `/api/step/import`
 - multipart form: `file=<step>`
