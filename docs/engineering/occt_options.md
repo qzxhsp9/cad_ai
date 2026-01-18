@@ -30,3 +30,6 @@ This doc summarizes common OpenCascade (OCCT) integration approaches for a web-f
 - If you need quickest STEP import validation in a web app: start with C (server-side conversion).
 - If you need offline or air-gapped usage: choose B (WASM).
 - If you are building a desktop-class app or local tool: choose A (native).
+
+## Related docs
+- Native OCCT STEP import plan: `docs/engineering/step_import_native_occt.md`
