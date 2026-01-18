@@ -13,7 +13,8 @@ This manual covers the interactive modeling UI in `apps/web`.
 - Orbit: not available (2D canvas mode).
 - Pan: hold `Shift` and drag, or use middle/right mouse button drag.
 - Zoom: mouse wheel.
-- Reset: refresh the page to reset view and scene.
+- Rotate: hold `Alt` and drag (or use `Q` / `E`).
+- Reset: press `0` or refresh the page to reset view and scene.
 
 ## Tools
 Use the left toolbar to switch tools:
@@ -40,6 +41,17 @@ Use the left toolbar to switch tools:
 
 ## Undo/Redo
 - Use "Undo" and "Redo" buttons in the left panel.
+
+## Keyboard shortcuts
+- Select: `V`
+- Line: `L`
+- Rectangle: `R`
+- Circle: `C`
+- Toggle snapping: `S`
+- Extrude selection: `X`
+- Rotate view: `Q` (left), `E` (right)
+- Reset view: `0`
+- Undo/Redo: `Ctrl+Z`, `Ctrl+Shift+Z` / `Ctrl+Y`
 
 ## Notes and limitations
 - This UI is a 2D canvas preview (no WebGPU render yet).

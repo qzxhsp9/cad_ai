@@ -52,11 +52,13 @@ const state = {
   snapping: true,
   isDragging: false,
   isPanning: false,
+  isRotating: false,
   dragStart: null as Vec2 | null,
   hoverPoint: null as Vec2 | null,
   snapCandidate: null as SnapCandidate | null,
   selectionBox: null as Bounds | null,
   panStart: null as { x: number; y: number; centerX: number; centerY: number } | null,
+  rotateStart: null as { x: number; y: number; rotation: number } | null,
   viewport: {
     width: 0,
     height: 0,
@@ -65,12 +67,15 @@ const state = {
   camera: {
     centerX: 0,
     centerY: 0,
-    scale: 40
+    scale: 40,
+    rotation: 0
   },
   statusMessage: "Ready"
 };
 
 let idCounter = 0;
+const ROTATE_SENSITIVITY = 0.008;
+const ROTATE_STEP = Math.PI / 12;
 
 function init(): void {
   setupTools();
@@ -99,6 +104,7 @@ function setupTools(): void {
 
 function setupEvents(): void {
   window.addEventListener("resize", resizeCanvas);
+  document.addEventListener("keydown", onKeyDown);
   canvas.addEventListener("pointerdown", onPointerDown);
   canvas.addEventListener("pointermove", onPointerMove);
   canvas.addEventListener("pointerup", onPointerUp);
@@ -170,6 +176,17 @@ function onWheel(event: WheelEvent): void {
 }
 
 function onPointerDown(event: PointerEvent): void {
+  if (event.altKey) {
+    state.isRotating = true;
+    state.rotateStart = {
+      x: event.clientX,
+      y: event.clientY,
+      rotation: state.camera.rotation
+    };
+    canvas.setPointerCapture(event.pointerId);
+    return;
+  }
+
   if (event.button === 1 || event.button === 2 || event.shiftKey) {
     state.isPanning = true;
     state.panStart = {
@@ -192,11 +209,19 @@ function onPointerDown(event: PointerEvent): void {
 }
 
 function onPointerMove(event: PointerEvent): void {
+  if (state.isRotating && state.rotateStart) {
+    const dx = event.clientX - state.rotateStart.x;
+    state.camera.rotation = state.rotateStart.rotation + dx * ROTATE_SENSITIVITY;
+    render();
+    return;
+  }
   if (state.isPanning && state.panStart) {
     const dx = (event.clientX - state.panStart.x) / state.camera.scale;
     const dy = (event.clientY - state.panStart.y) / state.camera.scale;
-    state.camera.centerX = state.panStart.centerX - dx;
-    state.camera.centerY = state.panStart.centerY + dy;
+    const viewDelta = { x: dx, y: -dy };
+    const worldDelta = rotateVector(viewDelta, -state.camera.rotation);
+    state.camera.centerX = state.panStart.centerX - worldDelta.x;
+    state.camera.centerY = state.panStart.centerY - worldDelta.y;
     render();
     return;
   }
@@ -226,6 +251,13 @@ function onPointerMove(event: PointerEvent): void {
 }
 
 function onPointerUp(event: PointerEvent): void {
+  if (state.isRotating) {
+    state.isRotating = false;
+    state.rotateStart = null;
+    canvas.releasePointerCapture(event.pointerId);
+    render();
+    return;
+  }
   if (state.isPanning) {
     state.isPanning = false;
     state.panStart = null;
@@ -613,9 +645,14 @@ function boundsIntersect(a: Bounds, b: Bounds): boolean {
 }
 
 function screenToWorld(x: number, y: number): Vec2 {
+  const view = {
+    x: (x - state.viewport.width * 0.5) / state.camera.scale,
+    y: (state.viewport.height * 0.5 - y) / state.camera.scale
+  };
+  const rotated = rotateVector(view, -state.camera.rotation);
   return {
-    x: (x - state.viewport.width * 0.5) / state.camera.scale + state.camera.centerX,
-    y: (state.viewport.height * 0.5 - y) / state.camera.scale + state.camera.centerY
+    x: rotated.x + state.camera.centerX,
+    y: rotated.y + state.camera.centerY
   };
 }
 
@@ -625,6 +662,7 @@ function render(): void {
   ctx.save();
   ctx.translate(state.viewport.width / 2, state.viewport.height / 2);
   ctx.scale(state.camera.scale, -state.camera.scale);
+  ctx.rotate(state.camera.rotation);
   ctx.translate(-state.camera.centerX, -state.camera.centerY);
 
   drawGrid();
@@ -653,6 +691,104 @@ function drawGrid(): void {
     ctx.lineTo(i, size);
     ctx.stroke();
   }
+}
+
+function onKeyDown(event: KeyboardEvent): void {
+  if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+    return;
+  }
+
+  const isMod = event.ctrlKey || event.metaKey;
+  if (isMod && event.code === "KeyZ") {
+    event.preventDefault();
+    if (event.shiftKey) {
+      redo();
+    } else {
+      undo();
+    }
+    render();
+    return;
+  }
+  if (isMod && event.code === "KeyY") {
+    event.preventDefault();
+    redo();
+    render();
+    return;
+  }
+
+  if (event.code === "KeyV") {
+    setTool("select");
+    return;
+  }
+  if (event.code === "KeyL") {
+    setTool("line");
+    return;
+  }
+  if (event.code === "KeyR") {
+    setTool("rect");
+    return;
+  }
+  if (event.code === "KeyC") {
+    setTool("circle");
+    return;
+  }
+  if (event.code === "KeyS") {
+    state.snapping = !state.snapping;
+    render();
+    return;
+  }
+  if (event.code === "KeyX") {
+    const value = Number(extrudeHeightInput instanceof HTMLInputElement ? extrudeHeightInput.value : 0);
+    if (Number.isFinite(value) && value > 0) {
+      extrudeSelection(value);
+      render();
+    }
+    return;
+  }
+  if (event.code === "KeyQ") {
+    state.camera.rotation -= ROTATE_STEP;
+    render();
+    return;
+  }
+  if (event.code === "KeyE") {
+    state.camera.rotation += ROTATE_STEP;
+    render();
+    return;
+  }
+  if (event.code === "Digit0") {
+    resetView();
+    render();
+    return;
+  }
+  if (event.code === "Escape") {
+    state.isDragging = false;
+    state.dragStart = null;
+    state.selectionBox = null;
+    setTool("select");
+  }
+}
+
+function setTool(tool: Tool): void {
+  state.tool = tool;
+  updateStatus();
+  setupTools();
+  render();
+}
+
+function resetView(): void {
+  state.camera.centerX = 0;
+  state.camera.centerY = 0;
+  state.camera.scale = 40;
+  state.camera.rotation = 0;
+}
+
+function rotateVector(vec: Vec2, angle: number): Vec2 {
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  return {
+    x: vec.x * cos - vec.y * sin,
+    y: vec.x * sin + vec.y * cos
+  };
 }
 
 function drawScene(): void {
