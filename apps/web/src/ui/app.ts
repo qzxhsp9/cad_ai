@@ -1603,22 +1603,22 @@ function mat4Multiply(a: Float32Array, b: Float32Array): Float32Array {
   const b32 = b[14];
   const b33 = b[15];
 
-  out[0] = b00 * a00 + b01 * a10 + b02 * a20 + b03 * a30;
-  out[1] = b00 * a01 + b01 * a11 + b02 * a21 + b03 * a31;
-  out[2] = b00 * a02 + b01 * a12 + b02 * a22 + b03 * a32;
-  out[3] = b00 * a03 + b01 * a13 + b02 * a23 + b03 * a33;
-  out[4] = b10 * a00 + b11 * a10 + b12 * a20 + b13 * a30;
-  out[5] = b10 * a01 + b11 * a11 + b12 * a21 + b13 * a31;
-  out[6] = b10 * a02 + b11 * a12 + b12 * a22 + b13 * a32;
-  out[7] = b10 * a03 + b11 * a13 + b12 * a23 + b13 * a33;
-  out[8] = b20 * a00 + b21 * a10 + b22 * a20 + b23 * a30;
-  out[9] = b20 * a01 + b21 * a11 + b22 * a21 + b23 * a31;
-  out[10] = b20 * a02 + b21 * a12 + b22 * a22 + b23 * a32;
-  out[11] = b20 * a03 + b21 * a13 + b22 * a23 + b23 * a33;
-  out[12] = b30 * a00 + b31 * a10 + b32 * a20 + b33 * a30;
-  out[13] = b30 * a01 + b31 * a11 + b32 * a21 + b33 * a31;
-  out[14] = b30 * a02 + b31 * a12 + b32 * a22 + b33 * a32;
-  out[15] = b30 * a03 + b31 * a13 + b32 * a23 + b33 * a33;
+  out[0] = a00 * b00 + a01 * b10 + a02 * b20 + a03 * b30;
+  out[1] = a00 * b01 + a01 * b11 + a02 * b21 + a03 * b31;
+  out[2] = a00 * b02 + a01 * b12 + a02 * b22 + a03 * b32;
+  out[3] = a00 * b03 + a01 * b13 + a02 * b23 + a03 * b33;
+  out[4] = a10 * b00 + a11 * b10 + a12 * b20 + a13 * b30;
+  out[5] = a10 * b01 + a11 * b11 + a12 * b21 + a13 * b31;
+  out[6] = a10 * b02 + a11 * b12 + a12 * b22 + a13 * b32;
+  out[7] = a10 * b03 + a11 * b13 + a12 * b23 + a13 * b33;
+  out[8] = a20 * b00 + a21 * b10 + a22 * b20 + a23 * b30;
+  out[9] = a20 * b01 + a21 * b11 + a22 * b21 + a23 * b31;
+  out[10] = a20 * b02 + a21 * b12 + a22 * b22 + a23 * b32;
+  out[11] = a20 * b03 + a21 * b13 + a22 * b23 + a23 * b33;
+  out[12] = a30 * b00 + a31 * b10 + a32 * b20 + a33 * b30;
+  out[13] = a30 * b01 + a31 * b11 + a32 * b21 + a33 * b31;
+  out[14] = a30 * b02 + a31 * b12 + a32 * b22 + a33 * b32;
+  out[15] = a30 * b03 + a31 * b13 + a32 * b23 + a33 * b33;
   return out;
 }
 
