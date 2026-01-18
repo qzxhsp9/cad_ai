@@ -1,7 +1,22 @@
-import { Command, createEmptySceneGraph, IncrementingIdFactory, Vector3 } from "../core/index.js";
-import { InteractionEngine } from "../interaction/index.js";
-
 type Tool = "select" | "line" | "rect" | "circle";
+
+type Vec2 = { x: number; y: number };
+
+type Shape =
+  | { id: string; type: "line"; start: Vec2; end: Vec2 }
+  | { id: string; type: "rect"; center: Vec2; width: number; height: number }
+  | { id: string; type: "circle"; center: Vec2; radius: number; segments: number }
+  | { id: string; type: "extrude"; profileId: string; height: number; bounds: Bounds };
+
+type Bounds = { min: Vec2; max: Vec2 };
+
+type SnapType = "endpoint" | "corner" | "midpoint" | "perpendicular" | "center";
+
+type SnapCandidate = {
+  point: Vec2;
+  type: SnapType;
+  distance: number;
+};
 
 const TOOL_LABELS: Record<Tool, string> = {
   select: "Select",
@@ -10,23 +25,8 @@ const TOOL_LABELS: Record<Tool, string> = {
   circle: "Circle"
 };
 
-function getCanvas(selector: string): HTMLCanvasElement {
-  const element = document.querySelector<HTMLCanvasElement>(selector);
-  if (!element) {
-    throw new Error("Viewport canvas not found.");
-  }
-  return element;
-}
-
-function getCanvasContext(target: HTMLCanvasElement): CanvasRenderingContext2D {
-  const context = target.getContext("2d");
-  if (!context) {
-    throw new Error("Unable to get 2D context.");
-  }
-  return context;
-}
-
 const canvas = getCanvas("#viewport");
+const ctx = getCanvasContext(canvas);
 
 const modeStatus = document.getElementById("modeStatus");
 const snapStatus = document.getElementById("snapStatus");
@@ -39,21 +39,23 @@ const snapToggle = document.getElementById("snapToggle");
 const extrudeBtn = document.getElementById("extrudeBtn");
 const extrudeHeightInput = document.getElementById("extrudeHeight");
 
-const ctx = getCanvasContext(canvas);
+const scene = {
+  shapes: [] as Shape[]
+};
 
-const idFactory = new IncrementingIdFactory("web");
-const engine = new InteractionEngine(createEmptySceneGraph({ name: "MVP" }), {
-  idFactory
-});
+const selection = new Set<string>();
+const undoStack: Shape[][] = [];
+const redoStack: Shape[][] = [];
 
 const state = {
   tool: "select" as Tool,
   snapping: true,
   isDragging: false,
   isPanning: false,
-  dragStart: null as Vector3 | null,
-  hoverPoint: null as Vector3 | null,
-  selectionBox: null as { min: Vector3; max: Vector3 } | null,
+  dragStart: null as Vec2 | null,
+  hoverPoint: null as Vec2 | null,
+  snapCandidate: null as SnapCandidate | null,
+  selectionBox: null as Bounds | null,
   panStart: null as { x: number; y: number; centerX: number; centerY: number } | null,
   viewport: {
     width: 0,
@@ -64,8 +66,11 @@ const state = {
     centerX: 0,
     centerY: 0,
     scale: 40
-  }
+  },
+  statusMessage: "Ready"
 };
+
+let idCounter = 0;
 
 function init(): void {
   setupTools();
@@ -98,23 +103,25 @@ function setupEvents(): void {
   canvas.addEventListener("pointermove", onPointerMove);
   canvas.addEventListener("pointerup", onPointerUp);
   canvas.addEventListener("wheel", onWheel, { passive: false });
+  canvas.addEventListener("contextmenu", (event) => event.preventDefault());
 
   undoBtn?.addEventListener("click", () => {
-    engine.undo();
+    undo();
     render();
   });
   redoBtn?.addEventListener("click", () => {
-    engine.redo();
+    redo();
     render();
   });
   snapToggle?.addEventListener("click", () => {
     state.snapping = !state.snapping;
     updateStatus();
+    render();
   });
   extrudeBtn?.addEventListener("click", () => {
     const value = Number(extrudeHeightInput instanceof HTMLInputElement ? extrudeHeightInput.value : 0);
     if (Number.isFinite(value) && value > 0) {
-      engine.extrudeSelection(value);
+      extrudeSelection(value);
       render();
     }
   });
@@ -126,6 +133,15 @@ function updateStatus(): void {
   }
   if (snapStatus) {
     snapStatus.textContent = `Snapping: ${state.snapping ? "On" : "Off"}`;
+  }
+  if (sceneStatus) {
+    sceneStatus.textContent = `${state.statusMessage} | Entities: ${scene.shapes.length} | Selected: ${selection.size}`;
+  }
+  if (undoBtn instanceof HTMLButtonElement) {
+    undoBtn.disabled = undoStack.length === 0;
+  }
+  if (redoBtn instanceof HTMLButtonElement) {
+    redoBtn.disabled = redoStack.length === 0;
   }
 }
 
@@ -143,13 +159,18 @@ function resizeCanvas(): void {
 
 function onWheel(event: WheelEvent): void {
   event.preventDefault();
+  const before = screenToWorld(event.offsetX, event.offsetY);
   const delta = event.deltaY < 0 ? 1.1 : 0.9;
-  state.camera.scale = Math.max(10, Math.min(200, state.camera.scale * delta));
+  const nextScale = Math.max(10, Math.min(200, state.camera.scale * delta));
+  state.camera.scale = nextScale;
+  const after = screenToWorld(event.offsetX, event.offsetY);
+  state.camera.centerX += before.x - after.x;
+  state.camera.centerY += before.y - after.y;
   render();
 }
 
 function onPointerDown(event: PointerEvent): void {
-  if (event.button === 1 || event.shiftKey) {
+  if (event.button === 1 || event.button === 2 || event.shiftKey) {
     state.isPanning = true;
     state.panStart = {
       x: event.clientX,
@@ -160,9 +181,11 @@ function onPointerDown(event: PointerEvent): void {
     canvas.setPointerCapture(event.pointerId);
     return;
   }
+
   state.isDragging = true;
   const point = screenToWorld(event.offsetX, event.offsetY);
-  state.dragStart = point;
+  state.snapCandidate = state.snapping ? findSnap(point, snapTolerance()) : null;
+  state.dragStart = state.snapCandidate ? state.snapCandidate.point : point;
   if (state.tool === "select") {
     state.selectionBox = null;
   }
@@ -179,6 +202,8 @@ function onPointerMove(event: PointerEvent): void {
   }
   const point = screenToWorld(event.offsetX, event.offsetY);
   state.hoverPoint = point;
+  state.snapCandidate = state.snapping ? findSnap(point, snapTolerance()) : null;
+
   if (!state.isDragging || !state.dragStart) {
     render();
     return;
@@ -186,16 +211,14 @@ function onPointerMove(event: PointerEvent): void {
 
   if (state.tool === "select") {
     state.selectionBox = {
-      min: [
-        Math.min(state.dragStart[0], point[0]),
-        Math.min(state.dragStart[1], point[1]),
-        0
-      ],
-      max: [
-        Math.max(state.dragStart[0], point[0]),
-        Math.max(state.dragStart[1], point[1]),
-        0
-      ]
+      min: {
+        x: Math.min(state.dragStart.x, point.x),
+        y: Math.min(state.dragStart.y, point.y)
+      },
+      max: {
+        x: Math.max(state.dragStart.x, point.x),
+        y: Math.max(state.dragStart.y, point.y)
+      }
     };
   }
 
@@ -210,9 +233,10 @@ function onPointerUp(event: PointerEvent): void {
     render();
     return;
   }
+
   const point = screenToWorld(event.offsetX, event.offsetY);
-  const snap = state.snapping ? engine.snap(point, 0.2) : null;
-  const finalPoint = snap ? snap.position : point;
+  const snap = state.snapping ? findSnap(point, snapTolerance()) : null;
+  const finalPoint = snap ? snap.point : point;
 
   if (!state.dragStart) {
     state.isDragging = false;
@@ -220,52 +244,50 @@ function onPointerUp(event: PointerEvent): void {
   }
 
   if (state.tool === "line") {
-    const command: Command = {
-      id: idFactory.nextCommandId(),
-      createdAt: new Date().toISOString(),
-      type: "draw_line",
+    addShape({
+      id: nextId(),
+      type: "line",
       start: state.dragStart,
       end: finalPoint
-    };
-    engine.apply(command);
+    });
   }
 
   if (state.tool === "rect") {
-    const center: Vector3 = [
-      (state.dragStart[0] + finalPoint[0]) * 0.5,
-      (state.dragStart[1] + finalPoint[1]) * 0.5,
-      0
-    ];
-    const command: Command = {
-      id: idFactory.nextCommandId(),
-      createdAt: new Date().toISOString(),
-      type: "draw_rect",
-      center,
-      width: Math.abs(finalPoint[0] - state.dragStart[0]),
-      height: Math.abs(finalPoint[1] - state.dragStart[1])
+    const center = {
+      x: (state.dragStart.x + finalPoint.x) * 0.5,
+      y: (state.dragStart.y + finalPoint.y) * 0.5
     };
-    engine.apply(command);
+    const width = Math.abs(finalPoint.x - state.dragStart.x);
+    const height = Math.abs(finalPoint.y - state.dragStart.y);
+    if (width > 0.01 && height > 0.01) {
+      addShape({
+        id: nextId(),
+        type: "rect",
+        center,
+        width,
+        height
+      });
+    }
   }
 
   if (state.tool === "circle") {
-    const dx = finalPoint[0] - state.dragStart[0];
-    const dy = finalPoint[1] - state.dragStart[1];
-    const command: Command = {
-      id: idFactory.nextCommandId(),
-      createdAt: new Date().toISOString(),
-      type: "draw_circle",
+    const dx = finalPoint.x - state.dragStart.x;
+    const dy = finalPoint.y - state.dragStart.y;
+    const radius = Math.max(0.05, Math.hypot(dx, dy));
+    addShape({
+      id: nextId(),
+      type: "circle",
       center: state.dragStart,
-      radius: Math.max(0.1, Math.hypot(dx, dy)),
+      radius,
       segments: 48
-    };
-    engine.apply(command);
+    });
   }
 
   if (state.tool === "select") {
     if (state.selectionBox) {
-      engine.selectBox(state.selectionBox);
+      selectByBox(state.selectionBox);
     } else {
-      engine.selectPoint(finalPoint);
+      selectByPoint(finalPoint);
     }
   }
 
@@ -275,21 +297,326 @@ function onPointerUp(event: PointerEvent): void {
   render();
 }
 
-function screenToWorld(x: number, y: number): Vector3 {
-  const rect = canvas.getBoundingClientRect();
-  return [
-    (x - rect.width * 0.5) / state.camera.scale + state.camera.centerX,
-    (rect.height * 0.5 - y) / state.camera.scale + state.camera.centerY,
-    0
-  ];
+function addShape(shape: Shape): void {
+  pushHistory();
+  scene.shapes = [...scene.shapes, shape];
+  state.statusMessage = "Updated";
 }
 
-function worldToScreen(point: Vector3): [number, number] {
-  const rect = canvas.getBoundingClientRect();
-  return [
-    rect.width * 0.5 + (point[0] - state.camera.centerX) * state.camera.scale,
-    rect.height * 0.5 - (point[1] - state.camera.centerY) * state.camera.scale
-  ];
+function extrudeSelection(height: number): void {
+  const targetId = Array.from(selection)[0];
+  if (!targetId) {
+    state.statusMessage = "Select a profile to extrude.";
+    return;
+  }
+  const target = scene.shapes.find((shape) => shape.id === targetId);
+  if (!target || (target.type !== "rect" && target.type !== "circle")) {
+    state.statusMessage = "Extrude supports rectangles or circles only.";
+    return;
+  }
+  const bounds = getBounds(target);
+  addShape({
+    id: nextId(),
+    type: "extrude",
+    profileId: target.id,
+    height,
+    bounds
+  });
+}
+
+function undo(): void {
+  const previous = undoStack.pop();
+  if (!previous) {
+    return;
+  }
+  redoStack.push(cloneShapes(scene.shapes));
+  scene.shapes = previous;
+  selection.clear();
+  state.statusMessage = "Undo";
+}
+
+function redo(): void {
+  const next = redoStack.pop();
+  if (!next) {
+    return;
+  }
+  undoStack.push(cloneShapes(scene.shapes));
+  scene.shapes = next;
+  selection.clear();
+  state.statusMessage = "Redo";
+}
+
+function pushHistory(): void {
+  undoStack.push(cloneShapes(scene.shapes));
+  redoStack.length = 0;
+}
+
+function cloneShapes(shapes: Shape[]): Shape[] {
+  return shapes.map((shape) => {
+    if (shape.type === "line") {
+      return {
+        ...shape,
+        start: { ...shape.start },
+        end: { ...shape.end }
+      };
+    }
+    if (shape.type === "rect") {
+      return {
+        ...shape,
+        center: { ...shape.center }
+      };
+    }
+    if (shape.type === "circle") {
+      return {
+        ...shape,
+        center: { ...shape.center }
+      };
+    }
+    return {
+      ...shape,
+      bounds: {
+        min: { ...shape.bounds.min },
+        max: { ...shape.bounds.max }
+      }
+    };
+  });
+}
+
+function selectByPoint(point: Vec2): void {
+  const hit = findHit(point, snapTolerance());
+  selection.clear();
+  if (hit) {
+    selection.add(hit.id);
+  }
+}
+
+function selectByBox(box: Bounds): void {
+  selection.clear();
+  for (const shape of scene.shapes) {
+    const bounds = getBounds(shape);
+    if (boundsIntersect(bounds, box)) {
+      selection.add(shape.id);
+    }
+  }
+}
+
+function findHit(point: Vec2, tolerance: number): Shape | null {
+  for (let i = scene.shapes.length - 1; i >= 0; i -= 1) {
+    const shape = scene.shapes[i];
+    if (hitShape(shape, point, tolerance)) {
+      return shape;
+    }
+  }
+  return null;
+}
+
+function hitShape(shape: Shape, point: Vec2, tolerance: number): boolean {
+  if (shape.type === "line") {
+    return distanceToSegment(point, shape.start, shape.end) <= tolerance;
+  }
+  if (shape.type === "rect") {
+    const bounds = getBounds(shape);
+    return point.x >= bounds.min.x - tolerance && point.x <= bounds.max.x + tolerance &&
+      point.y >= bounds.min.y - tolerance && point.y <= bounds.max.y + tolerance;
+  }
+  if (shape.type === "circle") {
+    const dx = point.x - shape.center.x;
+    const dy = point.y - shape.center.y;
+    return Math.hypot(dx, dy) <= shape.radius + tolerance;
+  }
+  const bounds = getBounds(shape);
+  return point.x >= bounds.min.x - tolerance && point.x <= bounds.max.x + tolerance &&
+    point.y >= bounds.min.y - tolerance && point.y <= bounds.max.y + tolerance;
+}
+
+function findSnap(point: Vec2, tolerance: number): SnapCandidate | null {
+  const candidates: SnapCandidate[] = [];
+  const pushCandidate = (candidate: SnapCandidate) => {
+    if (candidate.distance <= tolerance) {
+      candidates.push(candidate);
+    }
+  };
+
+  for (const shape of scene.shapes) {
+    if (shape.type === "line") {
+      const midpoint = midpointOf(shape.start, shape.end);
+      pushCandidate({
+        point: shape.start,
+        type: "endpoint",
+        distance: distance(point, shape.start)
+      });
+      pushCandidate({
+        point: shape.end,
+        type: "endpoint",
+        distance: distance(point, shape.end)
+      });
+      pushCandidate({
+        point: midpoint,
+        type: "midpoint",
+        distance: distance(point, midpoint)
+      });
+      const foot = footOnSegment(point, shape.start, shape.end);
+      if (foot) {
+        pushCandidate({
+          point: foot,
+          type: "perpendicular",
+          distance: distance(point, foot)
+        });
+      }
+    }
+
+    if (shape.type === "rect") {
+      const bounds = getBounds(shape);
+      const corners = [
+        bounds.min,
+        { x: bounds.min.x, y: bounds.max.y },
+        bounds.max,
+        { x: bounds.max.x, y: bounds.min.y }
+      ];
+      for (const corner of corners) {
+        pushCandidate({
+          point: corner,
+          type: "corner",
+          distance: distance(point, corner)
+        });
+      }
+      pushCandidate({
+        point: shape.center,
+        type: "center",
+        distance: distance(point, shape.center)
+      });
+    }
+
+    if (shape.type === "circle") {
+      pushCandidate({
+        point: shape.center,
+        type: "center",
+        distance: distance(point, shape.center)
+      });
+      const offsets = [
+        { x: shape.radius, y: 0 },
+        { x: -shape.radius, y: 0 },
+        { x: 0, y: shape.radius },
+        { x: 0, y: -shape.radius }
+      ];
+      for (const offset of offsets) {
+        const candidate = {
+          x: shape.center.x + offset.x,
+          y: shape.center.y + offset.y
+        };
+        pushCandidate({
+          point: candidate,
+          type: "endpoint",
+          distance: distance(point, candidate)
+        });
+      }
+    }
+  }
+
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  candidates.sort((a, b) => {
+    const priority = snapPriority(a.type) - snapPriority(b.type);
+    if (priority !== 0) {
+      return priority;
+    }
+    return a.distance - b.distance;
+  });
+
+  return candidates[0];
+}
+
+function snapPriority(type: SnapType): number {
+  if (type === "endpoint" || type === "corner") {
+    return 0;
+  }
+  if (type === "perpendicular") {
+    return 1;
+  }
+  return 2;
+}
+
+function snapTolerance(): number {
+  return 6 / state.camera.scale;
+}
+
+function distance(a: Vec2, b: Vec2): number {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+function midpointOf(a: Vec2, b: Vec2): Vec2 {
+  return { x: (a.x + b.x) * 0.5, y: (a.y + b.y) * 0.5 };
+}
+
+function distanceToSegment(point: Vec2, start: Vec2, end: Vec2): number {
+  const foot = footOnSegment(point, start, end);
+  if (!foot) {
+    return Math.min(distance(point, start), distance(point, end));
+  }
+  return distance(point, foot);
+}
+
+function footOnSegment(point: Vec2, start: Vec2, end: Vec2): Vec2 | null {
+  const abx = end.x - start.x;
+  const aby = end.y - start.y;
+  const abLength = abx * abx + aby * aby;
+  if (abLength === 0) {
+    return null;
+  }
+  const t = ((point.x - start.x) * abx + (point.y - start.y) * aby) / abLength;
+  if (t < 0 || t > 1) {
+    return null;
+  }
+  return {
+    x: start.x + abx * t,
+    y: start.y + aby * t
+  };
+}
+
+function getBounds(shape: Shape): Bounds {
+  if (shape.type === "line") {
+    return {
+      min: { x: Math.min(shape.start.x, shape.end.x), y: Math.min(shape.start.y, shape.end.y) },
+      max: { x: Math.max(shape.start.x, shape.end.x), y: Math.max(shape.start.y, shape.end.y) }
+    };
+  }
+  if (shape.type === "rect") {
+    return {
+      min: {
+        x: shape.center.x - shape.width * 0.5,
+        y: shape.center.y - shape.height * 0.5
+      },
+      max: {
+        x: shape.center.x + shape.width * 0.5,
+        y: shape.center.y + shape.height * 0.5
+      }
+    };
+  }
+  if (shape.type === "circle") {
+    return {
+      min: { x: shape.center.x - shape.radius, y: shape.center.y - shape.radius },
+      max: { x: shape.center.x + shape.radius, y: shape.center.y + shape.radius }
+    };
+  }
+  return shape.bounds;
+}
+
+function boundsIntersect(a: Bounds, b: Bounds): boolean {
+  return (
+    a.min.x <= b.max.x &&
+    a.max.x >= b.min.x &&
+    a.min.y <= b.max.y &&
+    a.max.y >= b.min.y
+  );
+}
+
+function screenToWorld(x: number, y: number): Vec2 {
+  return {
+    x: (x - state.viewport.width * 0.5) / state.camera.scale + state.camera.centerX,
+    y: (state.viewport.height * 0.5 - y) / state.camera.scale + state.camera.centerY
+  };
 }
 
 function render(): void {
@@ -309,9 +636,6 @@ function render(): void {
   ctx.restore();
   updateSelectionList();
   updateStatus();
-  if (sceneStatus) {
-    sceneStatus.textContent = `Entities: ${engine.scene.entities.length} | Selected: ${engine.selected.length}`;
-  }
 }
 
 function drawGrid(): void {
@@ -332,75 +656,53 @@ function drawGrid(): void {
 }
 
 function drawScene(): void {
-  const scene = engine.scene;
-  for (const entity of scene.entities) {
-    const metadataId = entity.components.metadata;
-    if (!metadataId) {
-      continue;
-    }
-    const metadata = scene.components.metadata[metadataId];
-    if (!metadata) {
-      continue;
-    }
-    const primitive = metadata.properties.primitive;
+  for (const shape of scene.shapes) {
     ctx.strokeStyle = "#7aa2ff";
     ctx.lineWidth = 2 / state.camera.scale;
 
-    if (primitive === "line") {
-      const start = readVec3(metadata, "line.start");
-      const end = readVec3(metadata, "line.end");
-      if (start && end) {
-        ctx.beginPath();
-        ctx.moveTo(start[0], start[1]);
-        ctx.lineTo(end[0], end[1]);
-        ctx.stroke();
-      }
+    if (shape.type === "line") {
+      ctx.beginPath();
+      ctx.moveTo(shape.start.x, shape.start.y);
+      ctx.lineTo(shape.end.x, shape.end.y);
+      ctx.stroke();
     }
 
-    if (primitive === "rect") {
-      const center = readVec3(metadata, "rect.center");
-      const width = Number(metadata.properties["rect.width"] ?? 0);
-      const height = Number(metadata.properties["rect.height"] ?? 0);
-      if (center) {
-        ctx.strokeRect(
-          center[0] - width * 0.5,
-          center[1] - height * 0.5,
-          width,
-          height
-        );
-      }
+    if (shape.type === "rect") {
+      ctx.strokeRect(
+        shape.center.x - shape.width * 0.5,
+        shape.center.y - shape.height * 0.5,
+        shape.width,
+        shape.height
+      );
     }
 
-    if (primitive === "circle") {
-      const center = readVec3(metadata, "circle.center");
-      const radius = Number(metadata.properties["circle.radius"] ?? 0);
-      if (center) {
-        ctx.beginPath();
-        ctx.arc(center[0], center[1], radius, 0, Math.PI * 2);
-        ctx.stroke();
-      }
+    if (shape.type === "circle") {
+      ctx.beginPath();
+      ctx.arc(shape.center.x, shape.center.y, shape.radius, 0, Math.PI * 2);
+      ctx.stroke();
     }
 
-    if (primitive === "extrude") {
-      const height = Number(metadata.properties["extrude.height"] ?? 0);
-      const min = readVec3(metadata, "profile.min");
-      const max = readVec3(metadata, "profile.max");
-      if (min && max) {
-        const dx = height * 0.2;
-        const dy = height * 0.2;
-        ctx.strokeRect(min[0], min[1], max[0] - min[0], max[1] - min[1]);
-        ctx.strokeRect(min[0] + dx, min[1] + dy, max[0] - min[0], max[1] - min[1]);
-        ctx.beginPath();
-        ctx.moveTo(min[0], min[1]);
-        ctx.lineTo(min[0] + dx, min[1] + dy);
-        ctx.moveTo(max[0], min[1]);
-        ctx.lineTo(max[0] + dx, min[1] + dy);
-        ctx.moveTo(max[0], max[1]);
-        ctx.lineTo(max[0] + dx, max[1] + dy);
-        ctx.moveTo(min[0], max[1]);
-        ctx.lineTo(min[0] + dx, max[1] + dy);
-        ctx.stroke();
-      }
+    if (shape.type === "extrude") {
+      const dx = shape.height * 0.2;
+      const dy = shape.height * 0.2;
+      const bounds = shape.bounds;
+      ctx.strokeRect(bounds.min.x, bounds.min.y, bounds.max.x - bounds.min.x, bounds.max.y - bounds.min.y);
+      ctx.strokeRect(
+        bounds.min.x + dx,
+        bounds.min.y + dy,
+        bounds.max.x - bounds.min.x,
+        bounds.max.y - bounds.min.y
+      );
+      ctx.beginPath();
+      ctx.moveTo(bounds.min.x, bounds.min.y);
+      ctx.lineTo(bounds.min.x + dx, bounds.min.y + dy);
+      ctx.moveTo(bounds.max.x, bounds.min.y);
+      ctx.lineTo(bounds.max.x + dx, bounds.min.y + dy);
+      ctx.moveTo(bounds.max.x, bounds.max.y);
+      ctx.lineTo(bounds.max.x + dx, bounds.max.y + dy);
+      ctx.moveTo(bounds.min.x, bounds.max.y);
+      ctx.lineTo(bounds.min.x + dx, bounds.max.y + dy);
+      ctx.stroke();
     }
   }
 }
@@ -411,34 +713,33 @@ function drawPreview(): void {
   }
   ctx.strokeStyle = "#ffd36a";
   ctx.lineWidth = 2 / state.camera.scale;
-  const point = state.hoverPoint ?? state.dragStart;
+  const point = state.snapCandidate?.point ?? state.hoverPoint ?? state.dragStart;
 
   if (state.tool === "line") {
     ctx.beginPath();
-    ctx.moveTo(state.dragStart[0], state.dragStart[1]);
-    ctx.lineTo(point[0], point[1]);
+    ctx.moveTo(state.dragStart.x, state.dragStart.y);
+    ctx.lineTo(point.x, point.y);
     ctx.stroke();
   }
 
   if (state.tool === "rect") {
-    const center: Vector3 = [
-      (state.dragStart[0] + point[0]) * 0.5,
-      (state.dragStart[1] + point[1]) * 0.5,
-      0
-    ];
+    const center = {
+      x: (state.dragStart.x + point.x) * 0.5,
+      y: (state.dragStart.y + point.y) * 0.5
+    };
     ctx.strokeRect(
-      center[0] - Math.abs(point[0] - state.dragStart[0]) * 0.5,
-      center[1] - Math.abs(point[1] - state.dragStart[1]) * 0.5,
-      Math.abs(point[0] - state.dragStart[0]),
-      Math.abs(point[1] - state.dragStart[1])
+      center.x - Math.abs(point.x - state.dragStart.x) * 0.5,
+      center.y - Math.abs(point.y - state.dragStart.y) * 0.5,
+      Math.abs(point.x - state.dragStart.x),
+      Math.abs(point.y - state.dragStart.y)
     );
   }
 
   if (state.tool === "circle") {
-    const dx = point[0] - state.dragStart[0];
-    const dy = point[1] - state.dragStart[1];
+    const dx = point.x - state.dragStart.x;
+    const dy = point.y - state.dragStart.y;
     ctx.beginPath();
-    ctx.arc(state.dragStart[0], state.dragStart[1], Math.hypot(dx, dy), 0, Math.PI * 2);
+    ctx.arc(state.dragStart.x, state.dragStart.y, Math.hypot(dx, dy), 0, Math.PI * 2);
     ctx.stroke();
   }
 }
@@ -448,63 +749,38 @@ function drawSelection(): void {
     ctx.strokeStyle = "#41c2ff";
     ctx.lineWidth = 1 / state.camera.scale;
     const { min, max } = state.selectionBox;
-    ctx.strokeRect(min[0], min[1], max[0] - min[0], max[1] - min[1]);
+    ctx.strokeRect(min.x, min.y, max.x - min.x, max.y - min.y);
   }
 
-  const selected = new Set(engine.selected);
-  for (const entity of engine.scene.entities) {
-    if (!selected.has(entity.id)) {
+  for (const shape of scene.shapes) {
+    if (!selection.has(shape.id)) {
       continue;
     }
-    const geometryId = entity.components.geometry;
-    if (!geometryId) {
-      continue;
-    }
-    const geometry = engine.scene.components.geometries[geometryId];
-    const bounds = geometry.localBounds ?? engine.scene.assets.meshes[geometry.mesh]?.bounds;
-    if (!bounds) {
-      continue;
-    }
+    const bounds = getBounds(shape);
     ctx.strokeStyle = "#7dff8c";
     ctx.lineWidth = 2 / state.camera.scale;
     ctx.strokeRect(
-      bounds.min[0],
-      bounds.min[1],
-      bounds.max[0] - bounds.min[0],
-      bounds.max[1] - bounds.min[1]
+      bounds.min.x,
+      bounds.min.y,
+      bounds.max.x - bounds.min.x,
+      bounds.max.y - bounds.min.y
     );
   }
 }
 
 function drawSnap(): void {
-  if (!state.snapping || !state.hoverPoint) {
+  if (!state.snapping || !state.snapCandidate) {
     return;
   }
-  const snap = engine.snap(state.hoverPoint, 0.2);
-  if (!snap) {
-    return;
-  }
+  const { point } = state.snapCandidate;
   ctx.strokeStyle = "#ff7a7a";
   ctx.lineWidth = 2 / state.camera.scale;
   ctx.beginPath();
-  ctx.moveTo(snap.position[0] - 0.1, snap.position[1]);
-  ctx.lineTo(snap.position[0] + 0.1, snap.position[1]);
-  ctx.moveTo(snap.position[0], snap.position[1] - 0.1);
-  ctx.lineTo(snap.position[0], snap.position[1] + 0.1);
+  ctx.moveTo(point.x - 0.1, point.y);
+  ctx.lineTo(point.x + 0.1, point.y);
+  ctx.moveTo(point.x, point.y - 0.1);
+  ctx.lineTo(point.x, point.y + 0.1);
   ctx.stroke();
-}
-
-function readVec3(
-  metadata: { properties: Record<string, unknown> },
-  prefix: string
-): Vector3 | null {
-  const x = Number(metadata.properties[`${prefix}.x`] ?? NaN);
-  const y = Number(metadata.properties[`${prefix}.y`] ?? NaN);
-  const z = Number(metadata.properties[`${prefix}.z`] ?? NaN);
-  if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) {
-    return null;
-  }
-  return [x, y, z];
 }
 
 function updateSelectionList(): void {
@@ -512,12 +788,34 @@ function updateSelectionList(): void {
     return;
   }
   selectionList.innerHTML = "";
-  selectionList.innerHTML = `<span>Selected</span>`;
-  engine.selected.forEach((id) => {
+  selectionList.innerHTML = "<span>Selected</span>";
+  for (const id of selection) {
+    const shape = scene.shapes.find((entry) => entry.id === id);
     const row = document.createElement("span");
-    row.textContent = id;
+    row.textContent = shape ? `${shape.type} (${shape.id})` : id;
     selectionList.appendChild(row);
-  });
+  }
+}
+
+function nextId(): string {
+  idCounter += 1;
+  return `shape-${idCounter}`;
+}
+
+function getCanvas(selector: string): HTMLCanvasElement {
+  const element = document.querySelector<HTMLCanvasElement>(selector);
+  if (!element) {
+    throw new Error("Viewport canvas not found.");
+  }
+  return element;
+}
+
+function getCanvasContext(target: HTMLCanvasElement): CanvasRenderingContext2D {
+  const context = target.getContext("2d");
+  if (!context) {
+    throw new Error("Unable to get 2D context.");
+  }
+  return context;
 }
 
 init();
