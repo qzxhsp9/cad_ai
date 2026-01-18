@@ -1248,7 +1248,8 @@ function autoFocus3d(view: View3D, sceneSize: number): void {
     z: (bounds.min.z + bounds.max.z) * 0.5
   };
   const safeSize = Math.max(sceneSize, 0.0001);
-  view.camera.distance = clamp(safeSize * 4, safeSize * 0.4, 500);
+  const baseDistance = Math.max(safeSize * 4, 2);
+  view.camera.distance = clamp(baseDistance, safeSize * 0.4, 500);
 }
 
 function sync3dViewport(view: View3D): void {
