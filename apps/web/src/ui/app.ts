@@ -1249,12 +1249,12 @@ function autoFocus3d(view: View3D): void {
     z: (bounds.min.z + bounds.max.z) * 0.5
   };
   const size = Math.max(
-    2,
     bounds.max.x - bounds.min.x,
     bounds.max.y - bounds.min.y,
     bounds.max.z - bounds.min.z
   );
-  view.camera.distance = Math.max(8, size * 1.8);
+  const safeSize = Math.max(size, 0.001);
+  view.camera.distance = clamp(safeSize * 2.5, 0.4, 500);
 }
 
 function build3dGeometry(
