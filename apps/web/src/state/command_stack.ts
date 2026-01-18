@@ -21,6 +21,10 @@ export class CommandStack {
     return this.scene;
   }
 
+  get commandContext(): CommandContext {
+    return this.context;
+  }
+
   apply(command: Command): SceneGraph {
     const result = applyCommand(this.scene, command, this.context);
     this.scene = result.scene;

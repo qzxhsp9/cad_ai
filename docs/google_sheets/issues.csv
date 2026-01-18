@@ -11,3 +11,9 @@ ISSUE-0009,SharedArrayBuffer channel,"Design data transfer contract for zero-cop
 ISSUE-0010,Configure wasm-pack pipeline,"Add wasm-pack build script, wasm bindings, and CI-ready instructions for local toolchain setup","wasm-pack build succeeds; wasm exports available; instructions documented for Cargo toolchain requirement","",Blocked
 ISSUE-0011,POC 100k FPS benchmark,"Validate 100k instance render target with benchmark mode and document the measured FPS","benchmark=1 shows FPS >= 60 for preset=100k on reference machine; capture evidence","ISSUE-0002",Open
 ISSUE-0012,Worker-driven geometry build path,"Build geometry buffers in a worker and validate with tests","Worker async build path passes tests","ISSUE-0006,ISSUE-0008",Done
+ISSUE-0013,Base primitives + extrude,"Add rect/circle/extrude commands and geometry buffers","Command + geometry tests pass for rect/circle/extrude","ISSUE-0005,ISSUE-0006",Done
+ISSUE-0014,Undo/redo stack,"Implement command stack with undo/redo for SceneGraph","Command stack tests pass","ISSUE-0005",Done
+ISSUE-0015,Snapping system,"Add endpoint/midpoint/perpendicular snapping and tests","Snapping tests pass","ISSUE-0005",Done
+ISSUE-0016,BVH selection,"Implement BVH point/box selection with tests","BVH tests pass","ISSUE-0006",Done
+ISSUE-0017,GPU picking map,"Provide ID-to-color mapping utilities with tests","Picking map tests pass","ISSUE-0006",Done
+ISSUE-0018,Push-pull workflow,"Wire extrude workflow into interaction engine","Interaction engine extrude tests pass; UI still required","ISSUE-0013,ISSUE-0014",In Progress
