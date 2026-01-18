@@ -2,11 +2,31 @@ type Tool = "select" | "line" | "rect" | "circle";
 
 type Vec2 = { x: number; y: number };
 
+type RectProfile = { center: Vec2; width: number; height: number };
+type CircleProfile = { center: Vec2; radius: number };
+
 type Shape =
   | { id: string; type: "line"; start: Vec2; end: Vec2 }
   | { id: string; type: "rect"; center: Vec2; width: number; height: number }
   | { id: string; type: "circle"; center: Vec2; radius: number; segments: number }
-  | { id: string; type: "extrude"; profileId: string; height: number; bounds: Bounds };
+  | {
+      id: string;
+      type: "extrude";
+      profileId: string;
+      height: number;
+      profileType: "rect";
+      profile: RectProfile;
+      bounds: Bounds;
+    }
+  | {
+      id: string;
+      type: "extrude";
+      profileId: string;
+      height: number;
+      profileType: "circle";
+      profile: CircleProfile;
+      bounds: Bounds;
+    };
 
 type Bounds = { min: Vec2; max: Vec2 };
 
@@ -346,12 +366,30 @@ function extrudeSelection(height: number): void {
     state.statusMessage = "Extrude supports rectangles or circles only.";
     return;
   }
+  if (target.type === "rect") {
+    const profile = { center: { ...target.center }, width: target.width, height: target.height };
+    const bounds = getBounds(target);
+    addShape({
+      id: nextId(),
+      type: "extrude",
+      profileId: target.id,
+      height,
+      profileType: "rect",
+      profile,
+      bounds
+    });
+    return;
+  }
+
+  const profile = { center: { ...target.center }, radius: target.radius };
   const bounds = getBounds(target);
   addShape({
     id: nextId(),
     type: "extrude",
     profileId: target.id,
     height,
+    profileType: "circle",
+    profile,
     bounds
   });
 }
@@ -409,7 +447,18 @@ function cloneShapes(shapes: Shape[]): Shape[] {
       bounds: {
         min: { ...shape.bounds.min },
         max: { ...shape.bounds.max }
-      }
+      },
+      profile:
+        shape.profileType === "rect"
+          ? {
+              center: { ...shape.profile.center },
+              width: shape.profile.width,
+              height: shape.profile.height
+            }
+          : {
+              center: { ...shape.profile.center },
+              radius: shape.profile.radius
+            }
     };
   });
 }
@@ -821,24 +870,55 @@ function drawScene(): void {
     if (shape.type === "extrude") {
       const dx = shape.height * 0.2;
       const dy = shape.height * 0.2;
-      const bounds = shape.bounds;
-      ctx.strokeRect(bounds.min.x, bounds.min.y, bounds.max.x - bounds.min.x, bounds.max.y - bounds.min.y);
-      ctx.strokeRect(
-        bounds.min.x + dx,
-        bounds.min.y + dy,
-        bounds.max.x - bounds.min.x,
-        bounds.max.y - bounds.min.y
-      );
-      ctx.beginPath();
-      ctx.moveTo(bounds.min.x, bounds.min.y);
-      ctx.lineTo(bounds.min.x + dx, bounds.min.y + dy);
-      ctx.moveTo(bounds.max.x, bounds.min.y);
-      ctx.lineTo(bounds.max.x + dx, bounds.min.y + dy);
-      ctx.moveTo(bounds.max.x, bounds.max.y);
-      ctx.lineTo(bounds.max.x + dx, bounds.max.y + dy);
-      ctx.moveTo(bounds.min.x, bounds.max.y);
-      ctx.lineTo(bounds.min.x + dx, bounds.max.y + dy);
-      ctx.stroke();
+      if (shape.profileType === "rect") {
+        const profile = shape.profile;
+        ctx.strokeRect(
+          profile.center.x - profile.width * 0.5,
+          profile.center.y - profile.height * 0.5,
+          profile.width,
+          profile.height
+        );
+        ctx.strokeRect(
+          profile.center.x - profile.width * 0.5 + dx,
+          profile.center.y - profile.height * 0.5 + dy,
+          profile.width,
+          profile.height
+        );
+        ctx.beginPath();
+        ctx.moveTo(profile.center.x - profile.width * 0.5, profile.center.y - profile.height * 0.5);
+        ctx.lineTo(profile.center.x - profile.width * 0.5 + dx, profile.center.y - profile.height * 0.5 + dy);
+        ctx.moveTo(profile.center.x + profile.width * 0.5, profile.center.y - profile.height * 0.5);
+        ctx.lineTo(profile.center.x + profile.width * 0.5 + dx, profile.center.y - profile.height * 0.5 + dy);
+        ctx.moveTo(profile.center.x + profile.width * 0.5, profile.center.y + profile.height * 0.5);
+        ctx.lineTo(profile.center.x + profile.width * 0.5 + dx, profile.center.y + profile.height * 0.5 + dy);
+        ctx.moveTo(profile.center.x - profile.width * 0.5, profile.center.y + profile.height * 0.5);
+        ctx.lineTo(profile.center.x - profile.width * 0.5 + dx, profile.center.y + profile.height * 0.5 + dy);
+        ctx.stroke();
+      } else {
+        const profile = shape.profile;
+        ctx.beginPath();
+        ctx.arc(profile.center.x, profile.center.y, profile.radius, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(
+          profile.center.x + dx,
+          profile.center.y + dy,
+          profile.radius,
+          0,
+          Math.PI * 2
+        );
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(profile.center.x + profile.radius, profile.center.y);
+        ctx.lineTo(profile.center.x + profile.radius + dx, profile.center.y + dy);
+        ctx.moveTo(profile.center.x - profile.radius, profile.center.y);
+        ctx.lineTo(profile.center.x - profile.radius + dx, profile.center.y + dy);
+        ctx.moveTo(profile.center.x, profile.center.y + profile.radius);
+        ctx.lineTo(profile.center.x + dx, profile.center.y + profile.radius + dy);
+        ctx.moveTo(profile.center.x, profile.center.y - profile.radius);
+        ctx.lineTo(profile.center.x + dx, profile.center.y - profile.radius + dy);
+        ctx.stroke();
+      }
     }
   }
 }
