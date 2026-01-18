@@ -40,6 +40,7 @@ Import steps:
 2. `npm install`
 3. `npm run build`
 4. `npm run serve` and open `http://localhost:8080`
+- Operation manual: `docs/ui/operation_manual.md`
 ## POC renderer
 The `poc` folder contains a minimal WebGPU/WebGL2 renderer and core math types.
 
