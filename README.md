@@ -25,6 +25,21 @@ Import steps:
 2. File -> Import -> Upload.
 3. Upload each CSV and choose "Insert new sheet(s)".
 
+## Data model
+- JSON schema: `docs/schema/scene_graph_v0.json`
+- Scene graph example: `docs/schema/scene_graph_v0.example.json`
+- TypeScript core types: `apps/web/src/core`
+- Math conventions: `docs/engineering/math_conventions.md`
+- Post-P1 plan: `docs/engineering/post_p1_plan.md`
+
+## Kernel wasm
+- Build: `npm run kernel:wasm` (outputs to `crates/kernel/pkg`)
+
+## Web app UI
+1. `cd apps/web`
+2. `npm install`
+3. `npm run build`
+4. `npm run serve` and open `http://localhost:8080`
 ## POC renderer
 The `poc` folder contains a minimal WebGPU/WebGL2 renderer and core math types.
 

@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CAD AI Web MVP</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+      body {
+        margin: 0;
+        background: #0f1115;
+        color: #e0e0e0;
+      }
+      #app {
+        display: grid;
+        grid-template-columns: 220px 1fr 260px;
+        grid-template-rows: 52px 1fr;
+        height: 100vh;
+      }
+      header {
+        grid-column: 1 / -1;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 0 16px;
+        background: #161a22;
+        border-bottom: 1px solid #222838;
+      }
+      header .status {
+        margin-left: auto;
+        font-size: 12px;
+        opacity: 0.8;
+      }
+      .panel {
+        padding: 16px;
+        border-right: 1px solid #222838;
+        background: #131721;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .panel.right {
+        border-left: 1px solid #222838;
+        border-right: none;
+      }
+      .panel h3 {
+        margin: 0;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        opacity: 0.7;
+      }
+      .toolbar {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      button,
+      input,
+      select {
+        font: inherit;
+        background: #1e2430;
+        border: 1px solid #2c3445;
+        color: #e0e0e0;
+        padding: 8px 10px;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      button.active {
+        border-color: #6aa2ff;
+        box-shadow: 0 0 0 1px #6aa2ff inset;
+      }
+      button.secondary {
+        background: #2a3142;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+      }
+      #viewport {
+        width: 100%;
+        height: 100%;
+        background: #0b0e14;
+        display: block;
+        cursor: crosshair;
+      }
+      .stat {
+        font-size: 12px;
+        opacity: 0.75;
+      }
+      .list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        font-size: 12px;
+      }
+      .list span {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <header>
+        <strong>CAD AI Web MVP</strong>
+        <div class="stat" id="modeStatus">Mode: Select</div>
+        <div class="stat" id="snapStatus">Snapping: On</div>
+        <div class="status" id="sceneStatus">Ready</div>
+      </header>
+      <aside class="panel">
+        <h3>Tools</h3>
+        <div class="toolbar" id="toolList"></div>
+        <div class="row">
+          <button id="undoBtn" class="secondary">Undo</button>
+          <button id="redoBtn" class="secondary">Redo</button>
+        </div>
+        <button id="snapToggle">Toggle Snapping</button>
+      </aside>
+      <canvas id="viewport"></canvas>
+      <aside class="panel right">
+        <h3>Properties</h3>
+        <label>
+          Extrude height
+          <input id="extrudeHeight" type="number" value="3" step="0.5" />
+        </label>
+        <button id="extrudeBtn">Extrude Selection</button>
+        <div class="list" id="selectionList"></div>
+      </aside>
+    </div>
+    <script type="module" src="./dist/src/ui/app.js"></script>
+  </body>
+</html>
