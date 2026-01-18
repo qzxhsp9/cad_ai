@@ -1126,13 +1126,7 @@ function init3dView(target: HTMLCanvasElement): View3D {
 }
 
 function resizeCanvas3d(): void {
-  const rect = canvas3d.getBoundingClientRect();
-  const ratio = window.devicePixelRatio || 1;
-  view3d.viewport.width = rect.width;
-  view3d.viewport.height = rect.height;
-  view3d.viewport.pixelRatio = ratio;
-  canvas3d.width = rect.width * ratio;
-  canvas3d.height = rect.height * ratio;
+  sync3dViewport(view3d);
 }
 
 function onPointerDown3d(event: PointerEvent): void {
@@ -1211,6 +1205,7 @@ function resetView3d(view: View3D): void {
 
 function render3d(view: View3D): void {
   const { gl, viewport, program, vao, buffer, uViewProj } = view;
+  sync3dViewport(view);
   const width = view.canvas.width;
   const height = view.canvas.height;
   if (width === 0 || height === 0) {
@@ -1232,7 +1227,7 @@ function render3d(view: View3D): void {
   const viewMat = mat4LookAt(eye, view.camera.target, { x: 0, y: 1, z: 0 });
   const viewProj = mat4Multiply(projection, viewMat);
 
-  const geometry = build3dGeometry(scene.shapes, selection, state.importedModel);
+  const geometry = build3dGeometry(scene.shapes, selection, state.importedModel, sceneSize);
   gl.useProgram(program);
   gl.uniformMatrix4fv(uViewProj, false, viewProj);
   gl.bindVertexArray(vao);
@@ -1256,18 +1251,40 @@ function autoFocus3d(view: View3D, sceneSize: number): void {
   view.camera.distance = clamp(safeSize * 4, safeSize * 0.4, 500);
 }
 
+function sync3dViewport(view: View3D): void {
+  const rect = view.canvas.getBoundingClientRect();
+  const ratio = window.devicePixelRatio || 1;
+  if (rect.width === 0 || rect.height === 0) {
+    return;
+  }
+  if (
+    rect.width !== view.viewport.width ||
+    rect.height !== view.viewport.height ||
+    ratio !== view.viewport.pixelRatio
+  ) {
+    view.viewport.width = rect.width;
+    view.viewport.height = rect.height;
+    view.viewport.pixelRatio = ratio;
+    view.canvas.width = Math.max(1, Math.floor(rect.width * ratio));
+    view.canvas.height = Math.max(1, Math.floor(rect.height * ratio));
+  }
+}
+
 function build3dGeometry(
   shapes: Shape[],
   selected: Set<string>,
-  importedModel: ImportedModel | null
+  importedModel: ImportedModel | null,
+  sceneSize: number
 ): Float32Array {
   const vertices: number[] = [];
   const baseColor = [0.47, 0.64, 1.0];
   const selectedColor = [0.49, 1.0, 0.55];
-  const gridColor = [0.15, 0.18, 0.25];
+  const gridColor = [0.2, 0.24, 0.34];
   const importedColor = [1.0, 0.82, 0.42];
+  const axisLength = Math.max(sceneSize * 2, 1);
 
   addGrid3d(vertices, gridColor);
+  addAxis3d(vertices, axisLength);
 
   if (importedModel) {
     addImportedLines3d(vertices, importedModel, importedColor);
@@ -1304,6 +1321,11 @@ function addGrid3d(vertices: number[], color: number[]): void {
   }
 }
 
+function addAxis3d(vertices: number[], length: number): void {
+  addSegment3d(vertices, { x: 0, y: 0 }, { x: length, y: 0 }, 0, [1, 0.35, 0.35]);
+  addSegment3d(vertices, { x: 0, y: 0 }, { x: 0, y: length }, 0, [0.35, 1, 0.35]);
+  addSegment3d(vertices, { x: 0, y: 0 }, { x: 0, y: 0 }, 0, [0.35, 0.6, 1], length);
+}
 function addImportedLines3d(
   vertices: number[],
   model: ImportedModel,
