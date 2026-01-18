@@ -16,6 +16,12 @@ This manual covers the interactive modeling UI in `apps/web`.
 - Rotate: hold `Alt` and drag (or use `Q` / `E`).
 - Reset: press `0` or refresh the page to reset view and scene.
 
+### 3D view controls
+- Orbit: drag in the 3D view.
+- Pan: right-drag or middle-drag in the 3D view.
+- Zoom: mouse wheel in the 3D view.
+- Reset: press `0` to reset both 2D and 3D views.
+
 ## Tools
 Use the left toolbar to switch tools:
 - Select: click to select a shape, or drag to box-select.

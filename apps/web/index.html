@@ -80,7 +80,32 @@
         display: flex;
         gap: 8px;
       }
-      #viewport {
+      #viewportArea {
+        display: grid;
+        grid-template-rows: 1fr 1fr;
+        gap: 0;
+        background: #0b0e14;
+      }
+      .viewportPane {
+        position: relative;
+        border-bottom: 1px solid #1a2030;
+      }
+      .viewportPane:last-child {
+        border-bottom: none;
+      }
+      .viewportTitle {
+        position: absolute;
+        top: 10px;
+        left: 12px;
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        opacity: 0.6;
+        z-index: 2;
+        pointer-events: none;
+      }
+      #viewport,
+      #viewport3d {
         width: 100%;
         height: 100%;
         background: #0b0e14;
@@ -121,7 +146,16 @@
         </div>
         <button id="snapToggle">Toggle Snapping</button>
       </aside>
-      <canvas id="viewport"></canvas>
+      <section id="viewportArea">
+        <div class="viewportPane">
+          <div class="viewportTitle">2D Sketch</div>
+          <canvas id="viewport"></canvas>
+        </div>
+        <div class="viewportPane">
+          <div class="viewportTitle">3D View</div>
+          <canvas id="viewport3d"></canvas>
+        </div>
+      </section>
       <aside class="panel right">
         <h3>Properties</h3>
         <label>
