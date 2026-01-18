@@ -28,7 +28,7 @@ const server = createServer(async (req, res) => {
       return;
     }
 
-    let fileStat: ReturnType<typeof statSync>;
+    let fileStat;
     try {
       fileStat = statSync(filePath);
     } catch {
