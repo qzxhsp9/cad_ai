@@ -423,44 +423,55 @@ function pushHistory(): void {
 
 function cloneShapes(shapes: Shape[]): Shape[] {
   return shapes.map((shape) => {
-    if (shape.type === "line") {
-      return {
-        ...shape,
-        start: { ...shape.start },
-        end: { ...shape.end }
-      };
+    switch (shape.type) {
+      case "line":
+        return {
+          ...shape,
+          start: { ...shape.start },
+          end: { ...shape.end }
+        };
+      case "rect":
+        return {
+          ...shape,
+          center: { ...shape.center }
+        };
+      case "circle":
+        return {
+          ...shape,
+          center: { ...shape.center }
+        };
+      case "extrude":
+        return cloneExtrude(shape);
+      default:
+        return shape;
     }
-    if (shape.type === "rect") {
-      return {
-        ...shape,
-        center: { ...shape.center }
-      };
-    }
-    if (shape.type === "circle") {
-      return {
-        ...shape,
-        center: { ...shape.center }
-      };
-    }
+  });
+}
+
+function cloneExtrude(shape: Extract<Shape, { type: "extrude" }>): Shape {
+  const bounds = {
+    min: { ...shape.bounds.min },
+    max: { ...shape.bounds.max }
+  };
+  if (shape.profileType === "rect") {
     return {
       ...shape,
-      bounds: {
-        min: { ...shape.bounds.min },
-        max: { ...shape.bounds.max }
-      },
-      profile:
-        shape.profileType === "rect"
-          ? {
-              center: { ...shape.profile.center },
-              width: shape.profile.width,
-              height: shape.profile.height
-            }
-          : {
-              center: { ...shape.profile.center },
-              radius: shape.profile.radius
-            }
+      bounds,
+      profile: {
+        center: { ...shape.profile.center },
+        width: shape.profile.width,
+        height: shape.profile.height
+      }
     };
-  });
+  }
+  return {
+    ...shape,
+    bounds,
+    profile: {
+      center: { ...shape.profile.center },
+      radius: shape.profile.radius
+    }
+  };
 }
 
 function selectByPoint(point: Vec2): void {
