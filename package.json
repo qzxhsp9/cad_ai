@@ -3,6 +3,7 @@
   "private": true,
   "workspaces": ["apps/*", "poc"],
   "scripts": {
+    "occt:serve": "npm --prefix apps/occt-service run start",
     "poc:build": "npm --prefix poc run build",
     "poc:typecheck": "npm --prefix poc run typecheck"
   }

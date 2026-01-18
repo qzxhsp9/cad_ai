@@ -7,3 +7,6 @@ Planned structure:
 
 UI manual:
 - `docs/ui/operation_manual.md`
+
+STEP import service:
+- `apps/occt-service`

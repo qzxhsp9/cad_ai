@@ -60,6 +60,36 @@ type View3D = {
   panStart: { x: number; y: number; target: Vec3 } | null;
 };
 
+type ImportedModel = {
+  id: string;
+  bounds: { min: Vec3; max: Vec3 };
+  lines: Float32Array;
+  meshCount: number;
+};
+
+type OcctMeshPayload = {
+  id: string;
+  positions: number[];
+  indices?: number[];
+  normals?: number[];
+};
+
+type OcctEdgePayload = {
+  positions: number[];
+};
+
+type OcctModelPayload = {
+  bounds: { min: [number, number, number]; max: [number, number, number] };
+  meshes: OcctMeshPayload[];
+  edges?: OcctEdgePayload[];
+};
+
+type OcctImportResponse = {
+  modelId: string;
+  bounds: { min: [number, number, number]; max: [number, number, number] };
+  meshCount: number;
+};
+
 const TOOL_LABELS: Record<Tool, string> = {
   select: "Select",
   line: "Line",
@@ -92,6 +122,7 @@ const canvas = getCanvas("#viewport");
 const ctx = getCanvasContext(canvas);
 const canvas3d = getCanvas("#viewport3d");
 const view3d = init3dView(canvas3d);
+const occtServiceUrl = getOcctServiceUrl();
 
 const modeStatus = document.getElementById("modeStatus");
 const snapStatus = document.getElementById("snapStatus");
@@ -101,6 +132,10 @@ const toolList = document.getElementById("toolList");
 const undoBtn = document.getElementById("undoBtn");
 const redoBtn = document.getElementById("redoBtn");
 const snapToggle = document.getElementById("snapToggle");
+const stepFileInput = document.getElementById("stepFile");
+const stepImportBtn = document.getElementById("stepImportBtn");
+const stepClearBtn = document.getElementById("stepClearBtn");
+const importStatus = document.getElementById("importStatus");
 const extrudeBtn = document.getElementById("extrudeBtn");
 const extrudeHeightInput = document.getElementById("extrudeHeight");
 
@@ -135,7 +170,9 @@ const state = {
     scale: 40,
     rotation: 0
   },
-  statusMessage: "Ready"
+  statusMessage: "Ready",
+  importedModel: null as ImportedModel | null,
+  importMessage: "No STEP model loaded."
 };
 
 let idCounter = 0;
@@ -194,6 +231,15 @@ function setupEvents(): void {
     updateStatus();
     render();
   });
+  stepImportBtn?.addEventListener("click", () => {
+    void importStepModel();
+  });
+  stepClearBtn?.addEventListener("click", () => {
+    state.importedModel = null;
+    state.importMessage = "No STEP model loaded.";
+    view3d.userMoved = false;
+    render();
+  });
   extrudeBtn?.addEventListener("click", () => {
     const value = Number(extrudeHeightInput instanceof HTMLInputElement ? extrudeHeightInput.value : 0);
     if (Number.isFinite(value) && value > 0) {
@@ -201,6 +247,132 @@ function setupEvents(): void {
       render();
     }
   });
+}
+
+function getOcctServiceUrl(): string {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("occt") ?? "http://localhost:7071";
+}
+
+async function importStepModel(): Promise<void> {
+  if (!(stepFileInput instanceof HTMLInputElement)) {
+    state.importMessage = "STEP input not available.";
+    updateStatus();
+    return;
+  }
+  const file = stepFileInput.files?.[0];
+  if (!file) {
+    state.importMessage = "Select a STEP file first.";
+    updateStatus();
+    return;
+  }
+
+  state.importMessage = "Uploading STEP...";
+  updateStatus();
+
+  try {
+    const formData = new FormData();
+    formData.append("file", file, file.name);
+    const response = await fetch(`${occtServiceUrl}/api/step/import`, {
+      method: "POST",
+      body: formData
+    });
+    if (!response.ok) {
+      throw new Error(`Import failed (${response.status}).`);
+    }
+    const payload = (await response.json()) as OcctImportResponse;
+    const modelResponse = await fetch(`${occtServiceUrl}/api/step/models/${payload.modelId}`);
+    if (!modelResponse.ok) {
+      throw new Error(`Model fetch failed (${modelResponse.status}).`);
+    }
+    const modelPayload = (await modelResponse.json()) as OcctModelPayload;
+    state.importedModel = buildImportedModel(payload.modelId, modelPayload);
+    state.importMessage = `Imported ${file.name} | Meshes: ${payload.meshCount}`;
+    view3d.userMoved = false;
+    render();
+  } catch (error) {
+    state.importMessage = error instanceof Error ? error.message : "Import failed.";
+    updateStatus();
+  }
+}
+
+function buildImportedModel(modelId: string, payload: OcctModelPayload): ImportedModel {
+  const lines: number[] = [];
+  if (payload.edges && payload.edges.length > 0) {
+    payload.edges.forEach((edge) => addPolylineEdges(lines, edge.positions));
+  } else {
+    payload.meshes.forEach((mesh) => addMeshEdges(lines, mesh.positions, mesh.indices));
+  }
+  return {
+    id: modelId,
+    bounds: toBounds(payload.bounds),
+    lines: new Float32Array(lines),
+    meshCount: payload.meshes.length
+  };
+}
+
+function addPolylineEdges(lines: number[], positions: number[]): void {
+  for (let i = 0; i + 5 < positions.length; i += 3) {
+    lines.push(
+      positions[i],
+      positions[i + 1],
+      positions[i + 2],
+      positions[i + 3],
+      positions[i + 4],
+      positions[i + 5]
+    );
+  }
+}
+
+function addMeshEdges(lines: number[], positions: number[], indices?: number[]): void {
+  if (indices && indices.length >= 3) {
+    for (let i = 0; i + 2 < indices.length; i += 3) {
+      const i0 = indices[i] * 3;
+      const i1 = indices[i + 1] * 3;
+      const i2 = indices[i + 2] * 3;
+      appendLine(lines, positions, i0, i1);
+      appendLine(lines, positions, i1, i2);
+      appendLine(lines, positions, i2, i0);
+    }
+    return;
+  }
+  for (let i = 0; i + 8 < positions.length; i += 9) {
+    appendLineRaw(lines, positions, i, i + 3);
+    appendLineRaw(lines, positions, i + 3, i + 6);
+    appendLineRaw(lines, positions, i + 6, i);
+  }
+}
+
+function appendLine(lines: number[], positions: number[], startIndex: number, endIndex: number): void {
+  lines.push(
+    positions[startIndex],
+    positions[startIndex + 1],
+    positions[startIndex + 2],
+    positions[endIndex],
+    positions[endIndex + 1],
+    positions[endIndex + 2]
+  );
+}
+
+function appendLineRaw(lines: number[], positions: number[], start: number, end: number): void {
+  lines.push(
+    positions[start],
+    positions[start + 1],
+    positions[start + 2],
+    positions[end],
+    positions[end + 1],
+    positions[end + 2]
+  );
+}
+
+function toBounds(bounds: { min: [number, number, number]; max: [number, number, number] }): {
+  min: Vec3;
+  max: Vec3;
+} {
+  return {
+    min: { x: bounds.min[0], y: bounds.min[1], z: bounds.min[2] },
+    max: { x: bounds.max[0], y: bounds.max[1], z: bounds.max[2] }
+  };
 }
 
 function updateStatus(): void {
@@ -212,6 +384,9 @@ function updateStatus(): void {
   }
   if (sceneStatus) {
     sceneStatus.textContent = `${state.statusMessage} | Entities: ${scene.shapes.length} | Selected: ${selection.size}`;
+  }
+  if (importStatus) {
+    importStatus.textContent = state.importMessage;
   }
   if (undoBtn instanceof HTMLButtonElement) {
     undoBtn.disabled = undoStack.length === 0;
@@ -1053,7 +1228,7 @@ function render3d(view: View3D): void {
   const viewMat = mat4LookAt(eye, view.camera.target, { x: 0, y: 1, z: 0 });
   const viewProj = mat4Multiply(projection, viewMat);
 
-  const geometry = build3dGeometry(scene.shapes, selection);
+  const geometry = build3dGeometry(scene.shapes, selection, state.importedModel);
   gl.useProgram(program);
   gl.uniformMatrix4fv(uViewProj, false, viewProj);
   gl.bindVertexArray(vao);
@@ -1064,7 +1239,7 @@ function render3d(view: View3D): void {
 }
 
 function autoFocus3d(view: View3D): void {
-  const bounds = computeSceneBounds3d(scene.shapes);
+  const bounds = computeSceneBounds3d(scene.shapes, state.importedModel);
   if (!bounds) {
     return;
   }
@@ -1082,13 +1257,22 @@ function autoFocus3d(view: View3D): void {
   view.camera.distance = Math.max(8, size * 1.8);
 }
 
-function build3dGeometry(shapes: Shape[], selected: Set<string>): Float32Array {
+function build3dGeometry(
+  shapes: Shape[],
+  selected: Set<string>,
+  importedModel: ImportedModel | null
+): Float32Array {
   const vertices: number[] = [];
   const baseColor = [0.47, 0.64, 1.0];
   const selectedColor = [0.49, 1.0, 0.55];
   const gridColor = [0.15, 0.18, 0.25];
+  const importedColor = [1.0, 0.82, 0.42];
 
   addGrid3d(vertices, gridColor);
+
+  if (importedModel) {
+    addImportedLines3d(vertices, importedModel, importedColor);
+  }
 
   shapes.forEach((shape) => {
     const color = selected.has(shape.id) ? selectedColor : baseColor;
@@ -1118,6 +1302,18 @@ function addGrid3d(vertices: number[], color: number[]): void {
   for (let i = -size; i <= size; i += 5) {
     addSegment3d(vertices, { x: -size, y: i }, { x: size, y: i }, 0, color);
     addSegment3d(vertices, { x: i, y: -size }, { x: i, y: size }, 0, color);
+  }
+}
+
+function addImportedLines3d(
+  vertices: number[],
+  model: ImportedModel,
+  color: number[]
+): void {
+  const lines = model.lines;
+  for (let i = 0; i + 5 < lines.length; i += 6) {
+    vertices.push(lines[i], lines[i + 1], lines[i + 2], color[0], color[1], color[2]);
+    vertices.push(lines[i + 3], lines[i + 4], lines[i + 5], color[0], color[1], color[2]);
   }
 }
 
@@ -1222,14 +1418,22 @@ function addSegment3d(
   vertices.push(end.x, end.y, zEnd, color[0], color[1], color[2]);
 }
 
-function computeSceneBounds3d(shapes: Shape[]): { min: Vec3; max: Vec3 } | null {
-  if (shapes.length === 0) {
+function computeSceneBounds3d(
+  shapes: Shape[],
+  importedModel: ImportedModel | null
+): { min: Vec3; max: Vec3 } | null {
+  if (shapes.length === 0 && !importedModel) {
     return null;
   }
-  const bounds = {
-    min: { x: Number.POSITIVE_INFINITY, y: Number.POSITIVE_INFINITY, z: 0 },
-    max: { x: Number.NEGATIVE_INFINITY, y: Number.NEGATIVE_INFINITY, z: 0 }
-  };
+  const bounds = importedModel
+    ? {
+        min: { ...importedModel.bounds.min },
+        max: { ...importedModel.bounds.max }
+      }
+    : {
+        min: { x: Number.POSITIVE_INFINITY, y: Number.POSITIVE_INFINITY, z: 0 },
+        max: { x: Number.NEGATIVE_INFINITY, y: Number.NEGATIVE_INFINITY, z: 0 }
+      };
   shapes.forEach((shape) => {
     const shapeBounds = getShapeBounds3d(shape);
     bounds.min.x = Math.min(bounds.min.x, shapeBounds.min.x);

@@ -45,6 +45,13 @@ Use the left toolbar to switch tools:
 - Click "Extrude Selection".
 - The extrude preview is drawn as an offset outline.
 
+## STEP import (native OCCT)
+- Start the native OCCT service at `http://localhost:7071`.
+- Click "Import STEP" and pick a `.step` or `.stp` file.
+- The model appears in the 3D view as a wireframe.
+- Click "Clear" to remove the imported model.
+- Override service URL with `?occt=http://host:port`.
+
 ## Undo/Redo
 - Use "Undo" and "Redo" buttons in the left panel.
 

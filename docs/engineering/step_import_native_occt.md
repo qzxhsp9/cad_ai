@@ -50,6 +50,20 @@ Import a STEP file using native OCCT and visualize its output in the web 3D view
 4. Convert to render buffers for the 3D view (triangle list + edge lines).
 5. Frame camera to returned bounds.
 
+## Local service implementation
+- Location: `apps/occt-service`
+- Start: `npm install` then `npm run start`
+- Port: `7071` by default (override with `PORT`).
+- OCCT CLI path: set `OCCT_CLI=/path/to/occt_step_export`.
+
+## OCCT CLI build (C++)
+- Source: `apps/occt-service/occt_cli`
+- Configure:
+  1. `cmake -S . -B build -DOpenCASCADE_DIR=<path>`
+  2. `cmake --build build --config Release`
+- Binary: `build/occt_step_export`
+- Arguments: `occt_step_export <file.step> --deflection 0.1 --angle 0.5 --unit mm`
+
 ## 3D view rendering plan
 - Triangles: shaded or flat color for surface validation.
 - Edges: optional line overlay for feature visibility.
