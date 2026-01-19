@@ -53,6 +53,12 @@ type View3D = {
     distance: number;
     target: Vec3;
   };
+  desired: {
+    yaw: number;
+    pitch: number;
+    distance: number;
+    target: Vec3;
+  };
   userMoved: boolean;
   isRotating: boolean;
   isPanning: boolean;
@@ -89,6 +95,15 @@ type OcctImportResponse = {
   bounds: { min: [number, number, number]; max: [number, number, number] };
   meshCount: number;
 };
+
+type GeometryBatch = {
+  overlay: Float32Array;
+  model: Float32Array;
+};
+
+let renderScheduled = false;
+const CAMERA_SMOOTHING = 0.2;
+const CAMERA_EPSILON = 1e-4;
 
 const TOOL_LABELS: Record<Tool, string> = {
   select: "Select",
@@ -217,6 +232,9 @@ function setupEvents(): void {
   canvas3d.addEventListener("pointerup", onPointerUp3d);
   canvas3d.addEventListener("wheel", onWheel3d, { passive: false });
   canvas3d.addEventListener("contextmenu", (event) => event.preventDefault());
+  canvas3d.addEventListener("pointercancel", reset3dInteraction);
+  canvas3d.addEventListener("lostpointercapture", reset3dInteraction);
+  window.addEventListener("blur", reset3dInteraction);
 
   undoBtn?.addEventListener("click", () => {
     undo();
@@ -1079,6 +1097,17 @@ function rotateVector(vec: Vec2, angle: number): Vec2 {
   };
 }
 
+function requestRender(): void {
+  if (renderScheduled) {
+    return;
+  }
+  renderScheduled = true;
+  requestAnimationFrame(() => {
+    renderScheduled = false;
+    render();
+  });
+}
+
 function init3dView(target: HTMLCanvasElement): View3D {
   const gl = getWebGlContext(target);
   const program = createProgram(gl, VERTEX_SHADER_3D, FRAGMENT_SHADER_3D);
@@ -1104,6 +1133,12 @@ function init3dView(target: HTMLCanvasElement): View3D {
   gl.clearColor(0.12, 0.14, 0.2, 1);
   gl.lineWidth(2);
 
+  const camera = {
+    yaw: Math.PI / 4,
+    pitch: Math.PI / 6,
+    distance: 24,
+    target: { x: 0, y: 0, z: 0 }
+  };
   return {
     canvas: target,
     gl,
@@ -1112,12 +1147,8 @@ function init3dView(target: HTMLCanvasElement): View3D {
     buffer,
     uViewProj,
     viewport: { width: 0, height: 0, pixelRatio: 1 },
-    camera: {
-      yaw: Math.PI / 4,
-      pitch: Math.PI / 6,
-      distance: 24,
-      target: { x: 0, y: 0, z: 0 }
-    },
+    camera: { ...camera },
+    desired: { ...camera, target: { ...camera.target } },
     userMoved: false,
     isRotating: false,
     isPanning: false,
@@ -1136,15 +1167,15 @@ function onPointerDown3d(event: PointerEvent): void {
     view3d.rotateStart = {
       x: event.clientX,
       y: event.clientY,
-      yaw: view3d.camera.yaw,
-      pitch: view3d.camera.pitch
+      yaw: view3d.desired.yaw,
+      pitch: view3d.desired.pitch
     };
   } else {
     view3d.isPanning = true;
     view3d.panStart = {
       x: event.clientX,
       y: event.clientY,
-      target: { ...view3d.camera.target }
+      target: { ...view3d.desired.target }
     };
   }
   view3d.userMoved = true;
@@ -1155,53 +1186,65 @@ function onPointerMove3d(event: PointerEvent): void {
   if (view3d.isRotating && view3d.rotateStart) {
     const dx = event.clientX - view3d.rotateStart.x;
     const dy = event.clientY - view3d.rotateStart.y;
-    view3d.camera.yaw = view3d.rotateStart.yaw + dx * 0.005;
-    view3d.camera.pitch = clamp(
+    view3d.desired.yaw = view3d.rotateStart.yaw + dx * 0.005;
+    view3d.desired.pitch = clamp(
       view3d.rotateStart.pitch + dy * 0.005,
       -1.45,
       1.45
     );
-    render();
+    requestRender();
     return;
   }
   if (view3d.isPanning && view3d.panStart) {
     const dx = event.clientX - view3d.panStart.x;
     const dy = event.clientY - view3d.panStart.y;
-    const panScale = view3d.camera.distance / 300;
+    const panScale = view3d.desired.distance / 300;
     const delta = { x: -dx * panScale, y: dy * panScale };
-    const { right, up } = cameraBasis(view3d.camera.yaw, view3d.camera.pitch);
-    view3d.camera.target = {
+    const { right, up } = cameraBasis(view3d.desired.yaw, view3d.desired.pitch);
+    view3d.desired.target = {
       x: view3d.panStart.target.x + right.x * delta.x + up.x * delta.y,
       y: view3d.panStart.target.y + right.y * delta.x + up.y * delta.y,
       z: view3d.panStart.target.z + right.z * delta.x + up.z * delta.y
     };
-    render();
+    requestRender();
   }
 }
 
 function onPointerUp3d(event: PointerEvent): void {
+  if (!view3d.isRotating && !view3d.isPanning) {
+    return;
+  }
   view3d.isRotating = false;
   view3d.isPanning = false;
   view3d.rotateStart = null;
   view3d.panStart = null;
-  canvas3d.releasePointerCapture(event.pointerId);
-  render();
+  if (canvas3d.hasPointerCapture(event.pointerId)) {
+    canvas3d.releasePointerCapture(event.pointerId);
+  }
+  requestRender();
 }
 
 function onWheel3d(event: WheelEvent): void {
   event.preventDefault();
   const delta = event.deltaY < 0 ? 0.9 : 1.1;
-  view3d.camera.distance = clamp(view3d.camera.distance * delta, 4, 200);
+  view3d.desired.distance = clamp(view3d.desired.distance * delta, 0.4, 500);
   view3d.userMoved = true;
-  render();
+  requestRender();
 }
 
 function resetView3d(view: View3D): void {
-  view.camera.yaw = Math.PI / 4;
-  view.camera.pitch = Math.PI / 6;
-  view.camera.distance = 24;
-  view.camera.target = { x: 0, y: 0, z: 0 };
+  view.desired.yaw = Math.PI / 4;
+  view.desired.pitch = Math.PI / 6;
+  view.desired.distance = 24;
+  view.desired.target = { x: 0, y: 0, z: 0 };
   view.userMoved = false;
+}
+
+function reset3dInteraction(): void {
+  view3d.isRotating = false;
+  view3d.isPanning = false;
+  view3d.rotateStart = null;
+  view3d.panStart = null;
 }
 
 function render3d(view: View3D): void {
@@ -1217,6 +1260,7 @@ function render3d(view: View3D): void {
   if (!view.userMoved) {
     autoFocus3d(view, sceneSize);
   }
+  const cameraAnimating = updateCamera(view);
   gl.viewport(0, 0, width, height);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
@@ -1237,9 +1281,24 @@ function render3d(view: View3D): void {
   gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 6 * 4, 0);
   gl.enableVertexAttribArray(1);
   gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 6 * 4, 3 * 4);
-  gl.bufferData(gl.ARRAY_BUFFER, geometry, gl.DYNAMIC_DRAW);
-  gl.drawArrays(gl.LINES, 0, geometry.length / 6);
+  gl.enable(gl.DEPTH_TEST);
+  gl.depthMask(true);
+  gl.bufferData(gl.ARRAY_BUFFER, geometry.model, gl.DYNAMIC_DRAW);
+  gl.drawArrays(gl.LINES, 0, geometry.model.length / 6);
+
+  if (geometry.overlay.length > 0) {
+    gl.disable(gl.DEPTH_TEST);
+    gl.depthMask(false);
+    gl.bufferData(gl.ARRAY_BUFFER, geometry.overlay, gl.DYNAMIC_DRAW);
+    gl.drawArrays(gl.LINES, 0, geometry.overlay.length / 6);
+    gl.depthMask(true);
+    gl.enable(gl.DEPTH_TEST);
+  }
   gl.bindVertexArray(null);
+
+  if (cameraAnimating) {
+    requestRender();
+  }
 }
 
 function autoFocus3d(view: View3D, sceneSize: number): void {
@@ -1247,14 +1306,14 @@ function autoFocus3d(view: View3D, sceneSize: number): void {
   if (!bounds) {
     return;
   }
-  view.camera.target = {
+  view.desired.target = {
     x: (bounds.min.x + bounds.max.x) * 0.5,
     y: (bounds.min.y + bounds.max.y) * 0.5,
     z: (bounds.min.z + bounds.max.z) * 0.5
   };
   const safeSize = Math.max(sceneSize, 0.0001);
   const baseDistance = Math.max(safeSize * 4, 2);
-  view.camera.distance = clamp(baseDistance, safeSize * 0.4, 500);
+  view.desired.distance = clamp(baseDistance, safeSize * 0.4, 500);
 }
 
 function sync3dViewport(view: View3D): void {
@@ -1281,42 +1340,53 @@ function build3dGeometry(
   selected: Set<string>,
   importedModel: ImportedModel | null,
   sceneSize: number
-): Float32Array {
-  const vertices: number[] = [];
+): GeometryBatch {
+  const modelVertices: number[] = [];
+  const overlayVertices: number[] = [];
   const baseColor = [0.47, 0.64, 1.0];
   const selectedColor = [0.49, 1.0, 0.55];
   const gridColor = [0.2, 0.24, 0.34];
   const importedColor = [1.0, 0.82, 0.42];
   const axisLength = Math.max(sceneSize * 2, 1);
 
-  addGrid3d(vertices, gridColor);
-  addAxis3d(vertices, axisLength);
+  addGrid3d(modelVertices, gridColor);
+  addAxis3d(overlayVertices, axisLength);
 
   if (importedModel) {
-    addImportedLines3d(vertices, importedModel, importedColor);
+    addImportedLines3d(modelVertices, importedModel, importedColor);
   }
 
   shapes.forEach((shape) => {
     const color = selected.has(shape.id) ? selectedColor : baseColor;
     if (shape.type === "line") {
-      addLine3d(vertices, shape.start, shape.end, 0, color);
+      addLine3d(modelVertices, shape.start, shape.end, 0, color);
     }
     if (shape.type === "rect") {
-      addRect3d(vertices, shape.center, shape.width, shape.height, 0, color);
+      addRect3d(modelVertices, shape.center, shape.width, shape.height, 0, color);
     }
     if (shape.type === "circle") {
-      addCircle3d(vertices, shape.center, shape.radius, 0, 48, color);
+      addCircle3d(modelVertices, shape.center, shape.radius, 0, 48, color);
     }
     if (shape.type === "extrude") {
       if (shape.profileType === "rect") {
-        addBox3d(vertices, shape.profile.center, shape.profile.width, shape.profile.height, shape.height, color);
+        addBox3d(
+          modelVertices,
+          shape.profile.center,
+          shape.profile.width,
+          shape.profile.height,
+          shape.height,
+          color
+        );
       } else {
-        addCylinder3d(vertices, shape.profile.center, shape.profile.radius, shape.height, 48, color);
+        addCylinder3d(modelVertices, shape.profile.center, shape.profile.radius, shape.height, 48, color);
       }
     }
   });
 
-  return new Float32Array(vertices);
+  return {
+    model: new Float32Array(modelVertices),
+    overlay: new Float32Array(overlayVertices)
+  };
 }
 
 function addGrid3d(vertices: number[], color: number[]): void {
@@ -1331,6 +1401,58 @@ function addAxis3d(vertices: number[], length: number): void {
   addSegment3d(vertices, { x: 0, y: 0 }, { x: length, y: 0 }, 0, [1, 0.35, 0.35]);
   addSegment3d(vertices, { x: 0, y: 0 }, { x: 0, y: length }, 0, [0.35, 1, 0.35]);
   addSegment3d(vertices, { x: 0, y: 0 }, { x: 0, y: 0 }, 0, [0.35, 0.6, 1], length);
+}
+
+function updateCamera(view: View3D): boolean {
+  const deltaYaw = angleDelta(view.camera.yaw, view.desired.yaw);
+  const deltaPitch = view.desired.pitch - view.camera.pitch;
+  const deltaDistance = view.desired.distance - view.camera.distance;
+  const deltaTarget = {
+    x: view.desired.target.x - view.camera.target.x,
+    y: view.desired.target.y - view.camera.target.y,
+    z: view.desired.target.z - view.camera.target.z
+  };
+
+  const animating =
+    Math.abs(deltaYaw) > CAMERA_EPSILON ||
+    Math.abs(deltaPitch) > CAMERA_EPSILON ||
+    Math.abs(deltaDistance) > CAMERA_EPSILON ||
+    Math.abs(deltaTarget.x) > CAMERA_EPSILON ||
+    Math.abs(deltaTarget.y) > CAMERA_EPSILON ||
+    Math.abs(deltaTarget.z) > CAMERA_EPSILON;
+
+  if (!animating) {
+    return false;
+  }
+
+  view.camera.yaw = lerpAngle(view.camera.yaw, view.desired.yaw, CAMERA_SMOOTHING);
+  view.camera.pitch = lerp(view.camera.pitch, view.desired.pitch, CAMERA_SMOOTHING);
+  view.camera.distance = lerp(view.camera.distance, view.desired.distance, CAMERA_SMOOTHING);
+  view.camera.target = lerpVec3(view.camera.target, view.desired.target, CAMERA_SMOOTHING);
+  return true;
+}
+
+function lerp(current: number, target: number, factor: number): number {
+  return current + (target - current) * factor;
+}
+
+function lerpVec3(current: Vec3, target: Vec3, factor: number): Vec3 {
+  return {
+    x: lerp(current.x, target.x, factor),
+    y: lerp(current.y, target.y, factor),
+    z: lerp(current.z, target.z, factor)
+  };
+}
+
+function lerpAngle(current: number, target: number, factor: number): number {
+  const delta = angleDelta(current, target);
+  return current + delta * factor;
+}
+
+function angleDelta(current: number, target: number): number {
+  let delta = target - current;
+  delta = ((delta + Math.PI) % (Math.PI * 2)) - Math.PI;
+  return delta;
 }
 function addImportedLines3d(
   vertices: number[],
