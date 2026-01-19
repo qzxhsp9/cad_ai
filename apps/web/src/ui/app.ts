@@ -1101,7 +1101,7 @@ function init3dView(target: HTMLCanvasElement): View3D {
   gl.vertexAttribPointer(1, 3, gl.FLOAT, false, stride, 3 * 4);
   gl.bindVertexArray(null);
   gl.enable(gl.DEPTH_TEST);
-  gl.clearColor(0.06, 0.07, 0.1, 1);
+  gl.clearColor(0.12, 0.14, 0.2, 1);
   gl.lineWidth(2);
 
   return {
