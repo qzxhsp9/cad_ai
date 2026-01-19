@@ -1233,6 +1233,10 @@ function render3d(view: View3D): void {
   gl.uniformMatrix4fv(uViewProj, false, viewProj);
   gl.bindVertexArray(vao);
   gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+  gl.enableVertexAttribArray(0);
+  gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 6 * 4, 0);
+  gl.enableVertexAttribArray(1);
+  gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 6 * 4, 3 * 4);
   gl.bufferData(gl.ARRAY_BUFFER, geometry, gl.DYNAMIC_DRAW);
   gl.drawArrays(gl.LINES, 0, geometry.length / 6);
   gl.bindVertexArray(null);
