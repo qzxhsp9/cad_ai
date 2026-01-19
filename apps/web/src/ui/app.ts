@@ -43,9 +43,15 @@ type View3D = {
   canvas: HTMLCanvasElement;
   gl: WebGL2RenderingContext;
   program: WebGLProgram;
+  solidProgram: WebGLProgram;
   vao: WebGLVertexArrayObject;
+  solidVao: WebGLVertexArrayObject;
   buffer: WebGLBuffer;
+  solidBuffer: WebGLBuffer;
   uViewProj: WebGLUniformLocation;
+  uSolidViewProj: WebGLUniformLocation;
+  uSolidColor: WebGLUniformLocation;
+  uSolidLight: WebGLUniformLocation;
   viewport: { width: number; height: number; pixelRatio: number };
   camera: {
     yaw: number;
@@ -70,6 +76,7 @@ type ImportedModel = {
   id: string;
   bounds: { min: Vec3; max: Vec3 };
   lines: Float32Array;
+  solidVertices: Float32Array;
   meshCount: number;
 };
 
@@ -99,6 +106,7 @@ type OcctImportResponse = {
 type GeometryBatch = {
   overlay: Float32Array;
   model: Float32Array;
+  solid: Float32Array;
 };
 
 let renderScheduled = false;
@@ -133,6 +141,31 @@ void main() {
 }
 `;
 
+const VERTEX_SHADER_SOLID = `#version 300 es
+precision highp float;
+layout(location = 0) in vec3 position;
+layout(location = 1) in vec3 normal;
+uniform mat4 uViewProj;
+out vec3 vNormal;
+void main() {
+  vNormal = normal;
+  gl_Position = uViewProj * vec4(position, 1.0);
+}
+`;
+
+const FRAGMENT_SHADER_SOLID = `#version 300 es
+precision highp float;
+in vec3 vNormal;
+uniform vec4 uColor;
+uniform vec3 uLightDir;
+out vec4 outColor;
+void main() {
+  vec3 n = normalize(vNormal);
+  float light = max(dot(n, normalize(uLightDir)), 0.2);
+  outColor = vec4(uColor.rgb * light, uColor.a);
+}
+`;
+
 const canvas = getCanvas("#viewport");
 const ctx = getCanvasContext(canvas);
 const canvas3d = getCanvas("#viewport3d");
@@ -151,6 +184,9 @@ const stepFileInput = document.getElementById("stepFile");
 const stepImportBtn = document.getElementById("stepImportBtn");
 const stepClearBtn = document.getElementById("stepClearBtn");
 const importStatus = document.getElementById("importStatus");
+const renderModeSelect = document.getElementById("renderMode");
+const opacityRange = document.getElementById("opacityRange");
+const opacityValue = document.getElementById("opacityValue");
 const extrudeBtn = document.getElementById("extrudeBtn");
 const extrudeHeightInput = document.getElementById("extrudeHeight");
 
@@ -187,7 +223,9 @@ const state = {
   },
   statusMessage: "Ready",
   importedModel: null as ImportedModel | null,
-  importMessage: "No STEP model loaded."
+  importMessage: "No STEP model loaded.",
+  renderMode: "wireframe" as "wireframe" | "solid" | "both",
+  opacity: 0.75
 };
 
 let idCounter = 0;
@@ -256,13 +294,26 @@ function setupEvents(): void {
     state.importedModel = null;
     state.importMessage = "No STEP model loaded.";
     view3d.userMoved = false;
-    render();
+    requestRender();
+  });
+  renderModeSelect?.addEventListener("change", () => {
+    if (renderModeSelect instanceof HTMLSelectElement) {
+      state.renderMode = renderModeSelect.value as "wireframe" | "solid" | "both";
+      requestRender();
+    }
+  });
+  opacityRange?.addEventListener("input", () => {
+    if (opacityRange instanceof HTMLInputElement) {
+      state.opacity = clamp(Number(opacityRange.value), 0.1, 1);
+      updateOpacityLabel();
+      requestRender();
+    }
   });
   extrudeBtn?.addEventListener("click", () => {
     const value = Number(extrudeHeightInput instanceof HTMLInputElement ? extrudeHeightInput.value : 0);
     if (Number.isFinite(value) && value > 0) {
       extrudeSelection(value);
-      render();
+      requestRender();
     }
   });
 }
@@ -270,6 +321,12 @@ function setupEvents(): void {
 function getOcctServiceUrl(): string {
   const params = new URLSearchParams(window.location.search);
   return params.get("occt") ?? "http://localhost:7071";
+}
+
+function updateOpacityLabel(): void {
+  if (opacityValue) {
+    opacityValue.textContent = state.opacity.toFixed(2);
+  }
 }
 
 async function importStepModel(): Promise<void> {
@@ -316,6 +373,7 @@ async function importStepModel(): Promise<void> {
 
 function buildImportedModel(modelId: string, payload: OcctModelPayload): ImportedModel {
   const lines: number[] = [];
+  const solidVertices = buildSolidVertices(payload.meshes);
   if (payload.edges && payload.edges.length > 0) {
     payload.edges.forEach((edge) => addPolylineEdges(lines, edge.positions));
   } else {
@@ -325,8 +383,26 @@ function buildImportedModel(modelId: string, payload: OcctModelPayload): Importe
     id: modelId,
     bounds: toBounds(payload.bounds),
     lines: new Float32Array(lines),
+    solidVertices,
     meshCount: payload.meshes.length
   };
+}
+
+function buildSolidVertices(meshes: OcctMeshPayload[]): Float32Array {
+  const vertices: number[] = [];
+  meshes.forEach((mesh) => {
+    const normals =
+      mesh.normals && mesh.normals.length === mesh.positions.length ? mesh.normals : null;
+    for (let i = 0; i + 2 < mesh.positions.length; i += 3) {
+      vertices.push(mesh.positions[i], mesh.positions[i + 1], mesh.positions[i + 2]);
+      if (normals) {
+        vertices.push(normals[i], normals[i + 1], normals[i + 2]);
+      } else {
+        vertices.push(0, 0, 1);
+      }
+    }
+  });
+  return new Float32Array(vertices);
 }
 
 function addPolylineEdges(lines: number[], positions: number[]): void {
@@ -412,6 +488,7 @@ function updateStatus(): void {
   if (redoBtn instanceof HTMLButtonElement) {
     redoBtn.disabled = redoStack.length === 0;
   }
+  updateOpacityLabel();
 }
 
 function resizeCanvas(): void {
@@ -1111,14 +1188,23 @@ function requestRender(): void {
 function init3dView(target: HTMLCanvasElement): View3D {
   const gl = getWebGlContext(target);
   const program = createProgram(gl, VERTEX_SHADER_3D, FRAGMENT_SHADER_3D);
+  const solidProgram = createProgram(gl, VERTEX_SHADER_SOLID, FRAGMENT_SHADER_SOLID);
   const vao = gl.createVertexArray();
+  const solidVao = gl.createVertexArray();
   const buffer = gl.createBuffer();
-  if (!vao || !buffer) {
+  const solidBuffer = gl.createBuffer();
+  if (!vao || !buffer || !solidVao || !solidBuffer) {
     throw new Error("Unable to initialize WebGL buffers.");
   }
   const uViewProj = gl.getUniformLocation(program, "uViewProj");
   if (!uViewProj) {
     throw new Error("uViewProj uniform not found.");
+  }
+  const uSolidViewProj = gl.getUniformLocation(solidProgram, "uViewProj");
+  const uSolidColor = gl.getUniformLocation(solidProgram, "uColor");
+  const uSolidLight = gl.getUniformLocation(solidProgram, "uLightDir");
+  if (!uSolidViewProj || !uSolidColor || !uSolidLight) {
+    throw new Error("Solid shader uniforms not found.");
   }
 
   gl.bindVertexArray(vao);
@@ -1128,6 +1214,14 @@ function init3dView(target: HTMLCanvasElement): View3D {
   gl.vertexAttribPointer(0, 3, gl.FLOAT, false, stride, 0);
   gl.enableVertexAttribArray(1);
   gl.vertexAttribPointer(1, 3, gl.FLOAT, false, stride, 3 * 4);
+  gl.bindVertexArray(null);
+
+  gl.bindVertexArray(solidVao);
+  gl.bindBuffer(gl.ARRAY_BUFFER, solidBuffer);
+  gl.enableVertexAttribArray(0);
+  gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 6 * 4, 0);
+  gl.enableVertexAttribArray(1);
+  gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 6 * 4, 3 * 4);
   gl.bindVertexArray(null);
   gl.enable(gl.DEPTH_TEST);
   gl.clearColor(0.12, 0.14, 0.2, 1);
@@ -1143,9 +1237,15 @@ function init3dView(target: HTMLCanvasElement): View3D {
     canvas: target,
     gl,
     program,
+    solidProgram,
     vao,
+    solidVao,
     buffer,
+    solidBuffer,
     uViewProj,
+    uSolidViewProj,
+    uSolidColor,
+    uSolidLight,
     viewport: { width: 0, height: 0, pixelRatio: 1 },
     camera: { ...camera },
     desired: { ...camera, target: { ...camera.target } },
@@ -1162,22 +1262,15 @@ function resizeCanvas3d(): void {
 }
 
 function onPointerDown3d(event: PointerEvent): void {
-  if (event.button === 0) {
-    view3d.isRotating = true;
-    view3d.rotateStart = {
-      x: event.clientX,
-      y: event.clientY,
-      yaw: view3d.desired.yaw,
-      pitch: view3d.desired.pitch
-    };
-  } else {
-    view3d.isPanning = true;
-    view3d.panStart = {
-      x: event.clientX,
-      y: event.clientY,
-      target: { ...view3d.desired.target }
-    };
-  }
+  view3d.isRotating = true;
+  view3d.rotateStart = {
+    x: event.clientX,
+    y: event.clientY,
+    yaw: view3d.desired.yaw,
+    pitch: view3d.desired.pitch
+  };
+  view3d.isPanning = false;
+  view3d.panStart = null;
   view3d.userMoved = true;
   canvas3d.setPointerCapture(event.pointerId);
 }
@@ -1196,17 +1289,7 @@ function onPointerMove3d(event: PointerEvent): void {
     return;
   }
   if (view3d.isPanning && view3d.panStart) {
-    const dx = event.clientX - view3d.panStart.x;
-    const dy = event.clientY - view3d.panStart.y;
-    const panScale = view3d.desired.distance / 300;
-    const delta = { x: -dx * panScale, y: dy * panScale };
-    const { right, up } = cameraBasis(view3d.desired.yaw, view3d.desired.pitch);
-    view3d.desired.target = {
-      x: view3d.panStart.target.x + right.x * delta.x + up.x * delta.y,
-      y: view3d.panStart.target.y + right.y * delta.x + up.y * delta.y,
-      z: view3d.panStart.target.z + right.z * delta.x + up.z * delta.y
-    };
-    requestRender();
+    return;
   }
 }
 
@@ -1248,7 +1331,20 @@ function reset3dInteraction(): void {
 }
 
 function render3d(view: View3D): void {
-  const { gl, viewport, program, vao, buffer, uViewProj } = view;
+  const {
+    gl,
+    viewport,
+    program,
+    solidProgram,
+    vao,
+    solidVao,
+    buffer,
+    solidBuffer,
+    uViewProj,
+    uSolidViewProj,
+    uSolidColor,
+    uSolidLight
+  } = view;
   sync3dViewport(view);
   const width = view.canvas.width;
   const height = view.canvas.height;
@@ -1273,28 +1369,63 @@ function render3d(view: View3D): void {
   const viewProj = mat4Multiply(projection, viewMat);
 
   const geometry = build3dGeometry(scene.shapes, selection, state.importedModel, sceneSize);
-  gl.useProgram(program);
-  gl.uniformMatrix4fv(uViewProj, false, viewProj);
-  gl.bindVertexArray(vao);
-  gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-  gl.enableVertexAttribArray(0);
-  gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 6 * 4, 0);
-  gl.enableVertexAttribArray(1);
-  gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 6 * 4, 3 * 4);
-  gl.enable(gl.DEPTH_TEST);
-  gl.depthMask(true);
-  gl.bufferData(gl.ARRAY_BUFFER, geometry.model, gl.DYNAMIC_DRAW);
-  gl.drawArrays(gl.LINES, 0, geometry.model.length / 6);
+  const renderSolid = state.renderMode !== "wireframe";
+  const renderWireframe = state.renderMode !== "solid";
+
+  if (renderSolid && geometry.solid.length > 0) {
+    gl.useProgram(solidProgram);
+    gl.uniformMatrix4fv(uSolidViewProj, false, viewProj);
+    gl.uniform4f(uSolidColor, 0.7, 0.82, 1.0, state.opacity);
+    gl.uniform3f(uSolidLight, 0.4, 0.8, 0.6);
+    gl.bindVertexArray(solidVao);
+    gl.bindBuffer(gl.ARRAY_BUFFER, solidBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, geometry.solid, gl.DYNAMIC_DRAW);
+    gl.enable(gl.DEPTH_TEST);
+    gl.depthMask(state.opacity >= 0.99);
+    if (state.opacity < 0.99) {
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    } else {
+      gl.disable(gl.BLEND);
+    }
+    gl.drawArrays(gl.TRIANGLES, 0, geometry.solid.length / 6);
+    gl.disable(gl.BLEND);
+    gl.bindVertexArray(null);
+  }
+
+  if (renderWireframe) {
+    gl.useProgram(program);
+    gl.uniformMatrix4fv(uViewProj, false, viewProj);
+    gl.bindVertexArray(vao);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 6 * 4, 0);
+    gl.enableVertexAttribArray(1);
+    gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 6 * 4, 3 * 4);
+    gl.enable(gl.DEPTH_TEST);
+    gl.depthMask(true);
+    gl.bufferData(gl.ARRAY_BUFFER, geometry.model, gl.DYNAMIC_DRAW);
+    gl.drawArrays(gl.LINES, 0, geometry.model.length / 6);
+    gl.bindVertexArray(null);
+  }
 
   if (geometry.overlay.length > 0) {
+    gl.useProgram(program);
+    gl.uniformMatrix4fv(uViewProj, false, viewProj);
+    gl.bindVertexArray(vao);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 6 * 4, 0);
+    gl.enableVertexAttribArray(1);
+    gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 6 * 4, 3 * 4);
     gl.disable(gl.DEPTH_TEST);
     gl.depthMask(false);
     gl.bufferData(gl.ARRAY_BUFFER, geometry.overlay, gl.DYNAMIC_DRAW);
     gl.drawArrays(gl.LINES, 0, geometry.overlay.length / 6);
     gl.depthMask(true);
     gl.enable(gl.DEPTH_TEST);
+    gl.bindVertexArray(null);
   }
-  gl.bindVertexArray(null);
 
   if (cameraAnimating) {
     requestRender();
@@ -1385,7 +1516,8 @@ function build3dGeometry(
 
   return {
     model: new Float32Array(modelVertices),
-    overlay: new Float32Array(overlayVertices)
+    overlay: new Float32Array(overlayVertices),
+    solid: importedModel ? importedModel.solidVertices : new Float32Array()
   };
 }
 
